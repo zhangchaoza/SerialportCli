@@ -8,20 +8,18 @@ namespace SerialportCli
     using Pastel;
     using System.Buffers;
     using System.Threading;
-    using System.Threading.Tasks;
-    using System.Collections.Concurrent;
     using System.Linq;
+    using System.Text;
 
-    internal static class EchoCommand
+    internal static class ReplCommand
     {
 
         private static long totalRecv;
         private static long totalSend;
-        private static BlockingCollection<(byte[] d, int l)> recvQueue = new BlockingCollection<(byte[] d, int l)>();
 
         public static Command Build()
         {
-            var command = new Command("echo", "connect to a serial port and echo receive.");
+            var command = new Command("repl", "read and write data in repl mode.");
             command.AddArgument(new Argument<string>("name", description: "name of serial port"));
             command.AddOption(new Option<int>(new string[] { "--baudrate", "-b" }, description: "baudrate of serial port", getDefaultValue: () => 9600));
             command.AddOption(new Option<Parity>(
@@ -41,38 +39,34 @@ namespace SerialportCli
                 isDefault: true));
             command.AddOption(new Option<int>(new string[] { "--databits", "-d" }, description: "databits of serial port", getDefaultValue: () => 8));
             command.AddOption(new Option<StopBits>(new string[] { "--stopbits", "-s" }, description: "stopBits of serial port", getDefaultValue: () => StopBits.One));
-            command.AddOption(new Option<int?>(new string[] { "--init-bytes" }, description: "send bytes when open serial port"));
-            command.Handler = CommandHandler.Create<InvocationContext, GlobalParams, EchoParams, int?>(Run);
+            command.Handler = CommandHandler.Create<InvocationContext, GlobalParams, SerialParams>(Run);
             return command;
         }
 
-        private static async Task<int> Run(InvocationContext context, GlobalParams globalParams, EchoParams @params, int? initBytes)
+        private static int Run(InvocationContext context, GlobalParams globalParams, SerialParams @params)
         {
             Console.WriteLine(GetPortInfo(@params));
             var port = new SerialPort(@params.Name, @params.Baudrate, @params.Parity, @params.Databits, @params.Stopbits);
             port.Open();
             port.DataReceived += OnDataRecv;
 
-            var processSendTask = Task.Run(() => ProcessSend(port, context.GetCancellationToken()));
-            var outputTask = Task.Run(() => OutputLoop(context.GetCancellationToken()));
+            context.GetCancellationToken().Register(() => port.Close());
 
-            var waiter = new TaskCompletionSource<int>();
-            context.GetCancellationToken().Register(() =>
+            while (!context.GetCancellationToken().IsCancellationRequested)
             {
-                waiter.TrySetResult(0);
-                port.Close();
-            });
-
-            if (initBytes.HasValue)
-            {
-                Console.WriteLine($"send init bytes {initBytes}");
-                var bytes = ArrayPool<byte>.Shared.Rent(initBytes.Value);
-                bytes.AsSpan().Fill(1);
-                recvQueue.TryAdd((bytes, initBytes.Value));
+                var data = Console.ReadLine();
+                if (string.IsNullOrEmpty(data))
+                {
+                    continue;
+                }
+                var l = Encoding.UTF8.GetByteCount(data);
+                var bytes = ArrayPool<byte>.Shared.Rent(l);
+                Encoding.UTF8.GetBytes(data, 0, data.Length, bytes, 0);
+                port.Write(bytes, 0, l);
+                Interlocked.Add(ref totalSend, l);
+                ArrayPool<byte>.Shared.Return(bytes);
+                OutputSend(BitConverter.ToString(bytes, 0, l));
             }
-
-            await Task.WhenAll(waiter.Task, processSendTask, outputTask);
-            OutPut();
 
             return 0;
         }
@@ -84,24 +78,10 @@ namespace SerialportCli
             var bytes = ArrayPool<byte>.Shared.Rent(l);
             port.Read(bytes, 0, l);
             Interlocked.Add(ref totalRecv, l);
-            recvQueue.TryAdd((bytes, l));
+            OutputRecv(BitConverter.ToString(bytes, 0, l));
         }
 
-        private static void ProcessSend(SerialPort port, CancellationToken token)
-        {
-            try
-            {
-                foreach (var data in recvQueue.GetConsumingEnumerable(token))
-                {
-                    port.Write(data.d, 0, data.l);
-                    ArrayPool<byte>.Shared.Return(data.d);
-                    Interlocked.Add(ref totalSend, data.l);
-                }
-            }
-            catch (System.OperationCanceledException) { }
-        }
-
-        private static string GetPortInfo(EchoParams @params)
+        private static string GetPortInfo(SerialParams @params)
         {
             return $"{"open".Pastel(Color.Gray)} {@params.Name.Pastel(Color.LightGreen)} {$"{@params.Baudrate},{GetParity(@params.Parity)},{@params.Databits},{GetStopbits(@params.Stopbits)}".Pastel(Color.Fuchsia)}";
 
@@ -124,22 +104,17 @@ namespace SerialportCli
             };
         }
 
-        private async static void OutputLoop(CancellationToken token)
+        private static void OutputRecv(string recv)
         {
-            while (!token.IsCancellationRequested)
-            {
-                OutPut();
-                await Task.Delay(100);
-            }
+            Console.WriteLine($"{"Total Recv:".Pastel(Color.Gray)}{totalRecv.ToString().Pastel(Color.Gray)}> {recv.Pastel(Color.LightBlue)}");
         }
 
-        private static void OutPut()
+        private static void OutputSend(string send)
         {
-            var output = $"{"Total:".Pastel(Color.Gray)}{totalRecv.ToString().Pastel(Color.DarkRed)} => {totalSend.ToString().Pastel(Color.DarkRed)}";
-            Console.Write($"\u001b[100D{output}");
+            Console.WriteLine($"{"Total Send:".Pastel(Color.Gray)}{totalSend.ToString().Pastel(Color.Gray)}> {send.Pastel(Color.LightGreen)}");
         }
 
-        internal class EchoParams
+        internal class SerialParams
         {
             public string Name { get; set; }
 

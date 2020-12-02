@@ -19,6 +19,7 @@
             var builder = new CommandLineBuilder(rootCommand)
                 .AddCommand(ListCommand.Build())
                 .AddCommand(EchoCommand.Build())
+                .AddCommand(ReplCommand.Build())
                 .AddGlobalOption(new Option<LogLevel>(
                     new string[] { "--Verbose", "-v" },
                     description: "Set the verbosity level.",
