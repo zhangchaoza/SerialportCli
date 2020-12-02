@@ -10,6 +10,10 @@ namespace SerialportCli
     using System.Threading;
     using System.Linq;
     using System.Text;
+    using System.Runtime.InteropServices;
+    using System.IO;
+    using SerialportCli.Extensions;
+    using SerialportCli.Natives;
 
     internal static class ReplCommand
     {
@@ -50,18 +54,27 @@ namespace SerialportCli
             port.Open();
             port.DataReceived += OnDataRecv;
 
-            context.GetCancellationToken().Register(() => port.Close());
+            context.GetCancellationToken().Register(() =>
+            {
+                port.Close();
+                var handle = kernel32.GetStdHandle(kernel32.STD_INPUT_HANDLE);
+                kernel32.CancelIoEx(handle, IntPtr.Zero);
+            });
 
             while (!context.GetCancellationToken().IsCancellationRequested)
             {
-                var data = Console.ReadLine();
-                if (string.IsNullOrEmpty(data))
+                if (!ConsoleExtension.SafeReadline(out var line))
+                {
+                    break;
+                }
+                if (string.IsNullOrEmpty(line))
                 {
                     continue;
                 }
-                var l = Encoding.UTF8.GetByteCount(data);
+
+                var l = Encoding.UTF8.GetByteCount(line);
                 var bytes = ArrayPool<byte>.Shared.Rent(l);
-                Encoding.UTF8.GetBytes(data, 0, data.Length, bytes, 0);
+                Encoding.UTF8.GetBytes(line, 0, line.Length, bytes, 0);
                 port.Write(bytes, 0, l);
                 Interlocked.Add(ref totalSend, l);
                 ArrayPool<byte>.Shared.Return(bytes);
