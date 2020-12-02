@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Copyright>Copyright © 2021 zhangchao</Copyright>
+    <Authors>github.com/zhangchaoza</Authors>
+  </PropertyGroup>
+</Project>
