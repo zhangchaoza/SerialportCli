@@ -14,7 +14,7 @@ namespace SerialportCli
 
     internal static class EchoCommand
     {
-
+        private static GlobalParams globalParams;
         private static long totalRecv;
         private static long totalSend;
         private static BlockingCollection<(byte[] d, int l)> recvQueue = new BlockingCollection<(byte[] d, int l)>();
@@ -48,6 +48,7 @@ namespace SerialportCli
 
         private static async Task<int> Run(InvocationContext context, GlobalParams globalParams, EchoParams @params, int? initBytes)
         {
+            EchoCommand.globalParams = globalParams;
             Console.WriteLine(GetPortInfo(@params));
             var port = new SerialPort(@params.Name, @params.Baudrate, @params.Parity, @params.Databits, @params.Stopbits);
             port.Open();
@@ -126,17 +127,33 @@ namespace SerialportCli
 
         private async static void OutputLoop(CancellationToken token)
         {
-            while (!token.IsCancellationRequested)
+            try
             {
-                OutPut();
-                await Task.Delay(100);
+                Console.CursorVisible = false;
+                while (!token.IsCancellationRequested)
+                {
+                    OutPut();
+                    await Task.Delay(100);
+                }
+            }
+            finally
+            {
+                Console.CursorVisible = true;
             }
         }
 
         private static void OutPut()
         {
             var output = $"{"Total:".Pastel(Color.Gray)}{totalRecv.ToString().Pastel(Color.DarkRed)} => {totalSend.ToString().Pastel(Color.DarkRed)}";
-            Console.Write($"\u001b[100D{output}");
+            if (EchoCommand.globalParams.NoAnsi)
+            {
+                Console.SetCursorPosition(0, Console.CursorTop);
+                Console.Write(output);
+            }
+            else
+            {
+                Console.Write($"\u001b[100D{output}");
+            }
         }
 
         internal class EchoParams

@@ -18,6 +18,6 @@ namespace SerialportCli
     {
         public LogLevel Verbose { get; set; }
 
-        public bool NoColors { get; set; }
+        public bool NoAnsi { get; set; }
     }
 }
