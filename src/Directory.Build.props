@@ -2,6 +2,9 @@
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
     <LangVersion>9.0</LangVersion>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>SerialportCli</ToolCommandName>
+    <PackageOutputPath>./nupkg</PackageOutputPath>
     <Copyright>Copyright © 2021 zhangchao</Copyright>
     <Authors>github.com/zhangchaoza</Authors>
   </PropertyGroup>
