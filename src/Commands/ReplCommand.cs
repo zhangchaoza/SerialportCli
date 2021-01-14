@@ -20,6 +20,7 @@ namespace SerialportCli
 
         private static long totalRecv;
         private static long totalSend;
+        private static SerialParams serialParams;
 
         public static Command Build()
         {
@@ -43,12 +44,14 @@ namespace SerialportCli
                 isDefault: true));
             command.AddOption(new Option<int>(new string[] { "--databits", "-d" }, description: "databits of serial port", getDefaultValue: () => 8));
             command.AddOption(new Option<StopBits>(new string[] { "--stopbits", "-s" }, description: "stopBits of serial port", getDefaultValue: () => StopBits.One));
+            command.AddOption(new Option<bool>(new string[] { "--string" }, description: "output string", getDefaultValue: () => false));
             command.Handler = CommandHandler.Create<InvocationContext, GlobalParams, SerialParams>(Run);
             return command;
         }
 
         private static int Run(InvocationContext context, GlobalParams globalParams, SerialParams @params)
         {
+            serialParams = @params;
             Console.WriteLine(GetPortInfo(@params));
             var port = new SerialPort(@params.Name, @params.Baudrate, @params.Parity, @params.Databits, @params.Stopbits);
             port.Open();
@@ -72,13 +75,16 @@ namespace SerialportCli
                     continue;
                 }
 
+                // add newline
+                line = line + "\r\n";
+
                 var l = Encoding.UTF8.GetByteCount(line);
                 var bytes = ArrayPool<byte>.Shared.Rent(l);
                 Encoding.UTF8.GetBytes(line, 0, line.Length, bytes, 0);
                 port.Write(bytes, 0, l);
                 Interlocked.Add(ref totalSend, l);
+                OutputSend(line, bytes, l);
                 ArrayPool<byte>.Shared.Return(bytes);
-                OutputSend(BitConverter.ToString(bytes, 0, l));
             }
 
             return 0;
@@ -91,7 +97,8 @@ namespace SerialportCli
             var bytes = ArrayPool<byte>.Shared.Rent(l);
             port.Read(bytes, 0, l);
             Interlocked.Add(ref totalRecv, l);
-            OutputRecv(BitConverter.ToString(bytes, 0, l));
+            OutputRecv(bytes, l);
+            ArrayPool<byte>.Shared.Return(bytes);
         }
 
         private static string GetPortInfo(SerialParams @params)
@@ -117,14 +124,31 @@ namespace SerialportCli
             };
         }
 
-        private static void OutputRecv(string recv)
+        private static void OutputRecv(byte[] bytes, int length)
         {
-            Console.WriteLine($"{"Total Recv:".Pastel(Color.Gray)}{totalRecv.ToString().Pastel(Color.Gray)}> {recv.Pastel(Color.LightBlue)}");
+            if (serialParams.String)
+            {
+                var s = System.Text.Encoding.UTF8.GetString(bytes, 0, length);
+                Console.Write(s);
+            }
+            else
+            {
+                var recv = BitConverter.ToString(bytes, 0, length);
+                Console.WriteLine($"{"Total Recv:".Pastel(Color.Gray)}{totalRecv.ToString().Pastel(Color.Gray)}> {recv.Pastel(Color.LightBlue)}");
+            }
         }
 
-        private static void OutputSend(string send)
+        private static void OutputSend(string line, byte[] bytes, int length)
         {
-            Console.WriteLine($"{"Total Send:".Pastel(Color.Gray)}{totalSend.ToString().Pastel(Color.Gray)}> {send.Pastel(Color.LightGreen)}");
+            if (serialParams.String)
+            {
+                Console.WriteLine(line);
+            }
+            else
+            {
+                var send = BitConverter.ToString(bytes, 0, length);
+                Console.WriteLine($"{"Total Send:".Pastel(Color.Gray)}{totalSend.ToString().Pastel(Color.Gray)}> {send.Pastel(Color.LightGreen)}");
+            }
         }
 
         internal class SerialParams
@@ -138,6 +162,8 @@ namespace SerialportCli
             public int Databits { get; set; }
 
             public StopBits Stopbits { get; set; }
+
+            public bool @String { get; set; }
         }
 
     }
