@@ -10,6 +10,8 @@
     {
         static int Main(string[] args)
         {
+            Console.InputEncoding = new System.Text.UTF8Encoding();
+
             if (!args.Any())
             {
                 args = new string[] { "-h" };
