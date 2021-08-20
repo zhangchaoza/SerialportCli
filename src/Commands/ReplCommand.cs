@@ -55,7 +55,13 @@ namespace SerialportCli
             ReplCommand.serialParams = serialParams;
             ReplCommand.replParams = replParams;
             Console.WriteLine(GetPortInfo(serialParams));
-            var port = new SerialPort(serialParams.Name, serialParams.Baudrate, serialParams.Parity, serialParams.Databits, serialParams.Stopbits);
+            var port = new SerialPort(serialParams.Name, serialParams.Baudrate, serialParams.Parity, serialParams.Databits, serialParams.Stopbits)
+            {
+                // Handshake = Handshake.XOnXOff,
+                // RtsEnable = true,
+                // ReadTimeout = 250,
+                // WriteTimeout = 250,
+            };
             port.Open();
             port.DataReceived += OnDataRecv;
 
