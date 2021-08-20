@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
-    <LangVersion>9.0</LangVersion>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>10.0</LangVersion>
     <PackageOutputPath>./nupkg</PackageOutputPath>
     <Copyright>Copyright © 2021 zhangchao</Copyright>
     <Authors>github.com/zhangchaoza</Authors>

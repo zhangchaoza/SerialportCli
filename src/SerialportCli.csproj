@@ -10,10 +10,11 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Pastel" Version="2.1.0" />
-    <PackageReference Include="System.CommandLine" Version="2.0.0-beta1.20574.7" />
-    <PackageReference Include="System.IO.Ports" Version="5.0.0" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-*" />
+    <PackageReference Include="System.IO.Ports" Version="6.0.0-preview.*" />
   </ItemGroup>
 
+  <!-- corert support -->
   <Choose>
     <When Condition="'$(Configuration)' == 'ReleaseILCompiler'">
 
