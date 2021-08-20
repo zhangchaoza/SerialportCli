@@ -15,6 +15,8 @@ namespace SerialportCli
     internal static class EchoCommand
     {
         private static GlobalParams globalParams;
+        private static SerialParams serialParams;
+        private static EchoParams echoParams;
         private static long totalRecv;
         private static long totalSend;
         private static BlockingCollection<(byte[] d, int l)> recvQueue = new BlockingCollection<(byte[] d, int l)>();
@@ -42,15 +44,17 @@ namespace SerialportCli
             command.AddOption(new Option<int>(new string[] { "--databits", "-d" }, description: "databits of serial port", getDefaultValue: () => 8));
             command.AddOption(new Option<StopBits>(new string[] { "--stopbits", "-s" }, description: "stopBits of serial port", getDefaultValue: () => StopBits.One));
             command.AddOption(new Option<int?>(new string[] { "--init-bytes" }, description: "send bytes when open serial port"));
-            command.Handler = CommandHandler.Create<InvocationContext, GlobalParams, EchoParams, int?>(Run);
+            command.Handler = CommandHandler.Create<InvocationContext, GlobalParams, SerialParams, EchoParams>(Run);
             return command;
         }
 
-        private static async Task<int> Run(InvocationContext context, GlobalParams globalParams, EchoParams @params, int? initBytes)
+        private static async Task<int> Run(InvocationContext context, GlobalParams globalParams, SerialParams serialParams, EchoParams echoParams)
         {
             EchoCommand.globalParams = globalParams;
-            Console.WriteLine(GetPortInfo(@params));
-            var port = new SerialPort(@params.Name, @params.Baudrate, @params.Parity, @params.Databits, @params.Stopbits);
+            EchoCommand.serialParams = serialParams;
+            EchoCommand.echoParams = echoParams;
+            Console.WriteLine(GetPortInfo(serialParams));
+            var port = new SerialPort(serialParams.Name, serialParams.Baudrate, serialParams.Parity, serialParams.Databits, serialParams.Stopbits);
             port.Open();
             port.DataReceived += OnDataRecv;
 
@@ -64,12 +68,12 @@ namespace SerialportCli
                 port.Close();
             });
 
-            if (initBytes.HasValue)
+            if (echoParams.InitBytes.HasValue)
             {
-                Console.WriteLine($"send init bytes {initBytes}");
-                var bytes = ArrayPool<byte>.Shared.Rent(initBytes.Value);
+                Console.WriteLine($"send init bytes {echoParams.InitBytes}");
+                var bytes = ArrayPool<byte>.Shared.Rent(echoParams.InitBytes.Value);
                 bytes.AsSpan().Fill(1);
-                recvQueue.TryAdd((bytes, initBytes.Value));
+                recvQueue.TryAdd((bytes, echoParams.InitBytes.Value));
             }
 
             await Task.WhenAll(waiter.Task, processSendTask, outputTask);
@@ -102,7 +106,7 @@ namespace SerialportCli
             catch (System.OperationCanceledException) { }
         }
 
-        private static string GetPortInfo(EchoParams @params)
+        private static string GetPortInfo(SerialParams @params)
         {
             return $"{"open".Pastel(Color.Gray)} {@params.Name.Pastel(Color.LightGreen)} {$"{@params.Baudrate},{GetParity(@params.Parity)},{@params.Databits},{GetStopbits(@params.Stopbits)}".Pastel(Color.Fuchsia)}";
 
@@ -158,15 +162,9 @@ namespace SerialportCli
 
         internal class EchoParams
         {
-            public string Name { get; set; }
 
-            public int Baudrate { get; set; }
+            public int? InitBytes { get; set; }
 
-            public Parity Parity { get; set; }
-
-            public int Databits { get; set; }
-
-            public StopBits Stopbits { get; set; }
         }
 
     }

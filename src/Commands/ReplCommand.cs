@@ -21,6 +21,7 @@ namespace SerialportCli
         private static long totalRecv;
         private static long totalSend;
         private static SerialParams serialParams;
+        private static ReplParams replParams;
 
         public static Command Build()
         {
@@ -45,15 +46,16 @@ namespace SerialportCli
             command.AddOption(new Option<int>(new string[] { "--databits", "-d" }, description: "databits of serial port", getDefaultValue: () => 8));
             command.AddOption(new Option<StopBits>(new string[] { "--stopbits", "-s" }, description: "stopBits of serial port", getDefaultValue: () => StopBits.One));
             command.AddOption(new Option<bool>(new string[] { "--string" }, description: "output string", getDefaultValue: () => false));
-            command.Handler = CommandHandler.Create<InvocationContext, GlobalParams, SerialParams>(Run);
+            command.Handler = CommandHandler.Create<InvocationContext, GlobalParams, SerialParams, ReplParams>(Run);
             return command;
         }
 
-        private static int Run(InvocationContext context, GlobalParams globalParams, SerialParams @params)
+        private static int Run(InvocationContext context, GlobalParams globalParams, SerialParams serialParams, ReplParams replParams)
         {
-            serialParams = @params;
-            Console.WriteLine(GetPortInfo(@params));
-            var port = new SerialPort(@params.Name, @params.Baudrate, @params.Parity, @params.Databits, @params.Stopbits);
+            ReplCommand.serialParams = serialParams;
+            ReplCommand.replParams = replParams;
+            Console.WriteLine(GetPortInfo(serialParams));
+            var port = new SerialPort(serialParams.Name, serialParams.Baudrate, serialParams.Parity, serialParams.Databits, serialParams.Stopbits);
             port.Open();
             port.DataReceived += OnDataRecv;
 
@@ -126,7 +128,7 @@ namespace SerialportCli
 
         private static void OutputRecv(byte[] bytes, int length)
         {
-            if (serialParams.String)
+            if (replParams.String)
             {
                 var s = System.Text.Encoding.UTF8.GetString(bytes, 0, length);
                 Console.Write(s);
@@ -140,30 +142,18 @@ namespace SerialportCli
 
         private static void OutputSend(string line, byte[] bytes, int length)
         {
-            if (serialParams.String)
-            {
-                Console.WriteLine(line);
-            }
-            else
+            if (!replParams.String)
             {
                 var send = BitConverter.ToString(bytes, 0, length);
                 Console.WriteLine($"{"Total Send:".Pastel(Color.Gray)}{totalSend.ToString().Pastel(Color.Gray)}> {send.Pastel(Color.LightGreen)}");
             }
         }
 
-        internal class SerialParams
+        internal class ReplParams
         {
-            public string Name { get; set; }
-
-            public int Baudrate { get; set; }
-
-            public Parity Parity { get; set; }
-
-            public int Databits { get; set; }
-
-            public StopBits Stopbits { get; set; }
 
             public bool @String { get; set; }
+
         }
 
     }
