@@ -32,7 +32,7 @@ public class FileAdapter : IReportAdapter
             {
                 using var fs = File.Open(path, FileMode.Append);
                 using var sw = new StreamWriter(fs);
-                sw.WriteLine($"\"{name}\",\"RX:{totalRecv}\",\"TX:{totalSend}\",\"{elapsed}\"");
+                sw.WriteLine($"\"{name}\",\"{totalRecv}\",\"{totalSend}\",\"{elapsed}\"");
                 break;
             }
             catch (System.IO.IOException)
