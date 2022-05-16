@@ -1,3 +1,1 @@
-dotnet publish -c ReleaseILCompiler -r win-x64 -v n
-
-Pause
+dotnet publish -c Release -r win-x64 --sc -v n -p:NativeBuild=true
