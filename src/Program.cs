@@ -22,6 +22,7 @@
                 .AddCommand(ListCommand.Build())
                 .AddCommand(EchoCommand.Build())
                 .AddCommand(ReplCommand.Build())
+                .AddCommand(TimerCommand.Build())
                 .AddGlobalOption(new Option<LogLevel>(
                     new string[] { "--Verbose", "-v" },
                     description: "Set the verbosity level.",

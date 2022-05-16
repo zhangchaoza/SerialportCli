@@ -54,14 +54,8 @@ namespace SerialportCli
         {
             ReplCommand.serialParams = serialParams;
             ReplCommand.replParams = replParams;
-            Console.WriteLine(GetPortInfo(serialParams));
-            var port = new SerialPort(serialParams.Name, serialParams.Baudrate, serialParams.Parity, serialParams.Databits, serialParams.Stopbits)
-            {
-                // Handshake = Handshake.XOnXOff,
-                // RtsEnable = true,
-                // ReadTimeout = 250,
-                // WriteTimeout = 250,
-            };
+            Console.WriteLine(SerialPortUtils.GetPortInfo(serialParams));
+            var port = SerialPortUtils.CreatePort(serialParams);
             port.Open();
             port.DataReceived += OnDataRecv;
 
@@ -107,29 +101,6 @@ namespace SerialportCli
             Interlocked.Add(ref totalRecv, l);
             OutputRecv(bytes, l);
             ArrayPool<byte>.Shared.Return(bytes);
-        }
-
-        private static string GetPortInfo(SerialParams @params)
-        {
-            return $"{"open".Pastel(Color.Gray)} {@params.Name.Pastel(Color.LightGreen)} {$"{@params.Baudrate},{GetParity(@params.Parity)},{@params.Databits},{GetStopbits(@params.Stopbits)}".Pastel(Color.Fuchsia)}";
-
-            string GetParity(Parity p) => p switch
-            {
-                Parity.None => "N",
-                Parity.Odd => "O",
-                Parity.Even => "E",
-                Parity.Mark => "M",
-                Parity.Space => "S",
-                _ => ""
-            };
-
-            string GetStopbits(StopBits s) => s switch
-            {
-                StopBits.One => "1",
-                StopBits.Two => "2",
-                StopBits.OnePointFive => "1.5",
-                _ => ""
-            };
         }
 
         private static void OutputRecv(byte[] bytes, int length)
