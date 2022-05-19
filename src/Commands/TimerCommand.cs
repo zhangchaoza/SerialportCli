@@ -47,6 +47,7 @@ public class TimerCommand
         command.AddOption(new Option<StopBits>(new string[] { "--stopbits", "-s" }, description: "stopBits of serial port", getDefaultValue: () => StopBits.One));
         command.AddOption(new Option<int?>(new string[] { "--fake-length" }, description: "length of faked bytes.", getDefaultValue: () => 8));
         command.AddOption(new Option<uint>(new string[] { "--interval" }, description: "write data interval.", getDefaultValue: () => 1000));
+        command.AddOption(new Option<long>(new string[] { "--timeout" }, description: "data fake timeout (ms).-1 means infinite.", getDefaultValue: () => 60000));
         command.AddOption(new Option<string>(new string[] { "--report-path" }, description: "path of report.(like file://sp_report.csv or file:///C:/sp_report.csv)", getDefaultValue: () => "file://sp_report.csv"));
         command.Handler = CommandHandler.Create<InvocationContext, GlobalParams, SerialParams, TimerCommand, FakeParams>(Run);
         return command;
@@ -64,11 +65,14 @@ public class TimerCommand
         port.Open();
         port.DataReceived += OnDataRecv;
 
-        var processSendTask = Task.Run(async () => await ProcessSend(port, context.GetCancellationToken()));
-        var outputTask = Task.Run(() => OutputLoop(context.GetCancellationToken()));
+        var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(fakeParams.Timeout));
+        var token = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, context.GetCancellationToken()).Token;
+
+        var processSendTask = Task.Run(async () => await ProcessSend(port, token));
+        var outputTask = Task.Run(() => OutputLoop(token));
 
         var waiter = new TaskCompletionSource<int>();
-        context.GetCancellationToken().Register(() =>
+        token.Register(() =>
         {
             waiter.TrySetResult(0);
             port.Close();
@@ -143,6 +147,8 @@ public class TimerCommand
     internal class FakeParams
     {
         public uint Interval { get; set; }
+
+        public long Timeout { get; set; }
 
         public string ReportPath { get; set; }
 
