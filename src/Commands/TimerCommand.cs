@@ -47,7 +47,7 @@ public class TimerCommand
         command.AddOption(new Option<StopBits>(new string[] { "--stopbits", "-s" }, description: "stopBits of serial port", getDefaultValue: () => StopBits.One));
         command.AddOption(new Option<int?>(new string[] { "--fake-length" }, description: "length of faked bytes.", getDefaultValue: () => 8));
         command.AddOption(new Option<uint>(new string[] { "--interval" }, description: "write data interval.", getDefaultValue: () => 1000));
-        command.AddOption(new Option<string>(new string[] { "--report-path" }, description: "path of report.(like file://report.csv or file:///C:/report.csv)", getDefaultValue: () => "file://report.csv"));
+        command.AddOption(new Option<string>(new string[] { "--report-path" }, description: "path of report.(like file://sp_report.csv or file:///C:/sp_report.csv)", getDefaultValue: () => "file://sp_report.csv"));
         command.Handler = CommandHandler.Create<InvocationContext, GlobalParams, SerialParams, TimerCommand, FakeParams>(Run);
         return command;
     }
