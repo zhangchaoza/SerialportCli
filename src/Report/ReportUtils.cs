@@ -36,11 +36,11 @@ internal class ConsoleAdapter : IReportAdapter
     {
         if (useStdio)
         {
-            Console.WriteLine($"{name},RX:{totalRecv},TX:{totalSend},{elapsed}");
+            Console.WriteLine($"{name},RX:{totalRecv},TX:{totalSend},{elapsed.TotalMilliseconds}");
         }
         else
         {
-            Console.Error.WriteLine($"{name},RX:{totalRecv},TX:{totalSend},{elapsed}");
+            Console.Error.WriteLine($"{name},RX:{totalRecv},TX:{totalSend},{elapsed.TotalMilliseconds}");
         }
     }
 }
