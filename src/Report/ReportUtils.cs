@@ -4,7 +4,7 @@ namespace SerialportCli.Report;
 
 public static class ReportUtils
 {
-    public static void SaveReport(string reportPath, string name, long totalRecv, long totalSend, System.TimeSpan elapsed)
+    public static void SaveReport(string reportPath, string name, long totalRecv, long totalSend, long elapsed)
     {
         var url = new Uri(reportPath);
         IReportAdapter adapter = url.Scheme switch
@@ -20,7 +20,7 @@ public static class ReportUtils
 
 public interface IReportAdapter
 {
-    void Append(string name, long totalRecv, long totalSend, System.TimeSpan elapsed);
+    void Append(string name, long totalRecv, long totalSend, long elapsed);
 }
 
 internal class ConsoleAdapter : IReportAdapter
@@ -32,15 +32,15 @@ internal class ConsoleAdapter : IReportAdapter
         this.useStdio = useStdio;
     }
 
-    public void Append(string name, long totalRecv, long totalSend, TimeSpan elapsed)
+    public void Append(string name, long totalRecv, long totalSend, long elapsed)
     {
         if (useStdio)
         {
-            Console.WriteLine($"{name},RX:{totalRecv},TX:{totalSend},{elapsed.TotalMilliseconds}");
+            Console.WriteLine($"{name},RX:{totalRecv},TX:{totalSend},{elapsed}");
         }
         else
         {
-            Console.Error.WriteLine($"{name},RX:{totalRecv},TX:{totalSend},{elapsed.TotalMilliseconds}");
+            Console.Error.WriteLine($"{name},RX:{totalRecv},TX:{totalSend},{elapsed}");
         }
     }
 }

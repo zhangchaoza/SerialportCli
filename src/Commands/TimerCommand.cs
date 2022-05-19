@@ -60,6 +60,7 @@ public class TimerCommand
         Console.WriteLine(SerialPortUtils.GetPortInfo(serialParams));
         var port = SerialPortUtils.CreatePort(serialParams);
         var sp = new Stopwatch();
+        sp.Start();
         port.Open();
         port.DataReceived += OnDataRecv;
 
@@ -78,7 +79,7 @@ public class TimerCommand
         sp.Stop();
 
         // save report
-        ReportUtils.SaveReport(fakeParams.ReportPath, serialParams.Name, totalRecv, totalSend, sp.Elapsed);
+        ReportUtils.SaveReport(fakeParams.ReportPath, serialParams.Name, totalRecv, totalSend, sp.ElapsedMilliseconds);
 
         return 0;
     }

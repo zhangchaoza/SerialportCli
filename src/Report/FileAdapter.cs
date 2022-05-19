@@ -13,7 +13,7 @@ public class FileAdapter : IReportAdapter
         this.url = url;
     }
 
-    public void Append(string name, long totalRecv, long totalSend, TimeSpan elapsed)
+    public void Append(string name, long totalRecv, long totalSend, long elapsed)
     {
         string path = "";
 
@@ -32,7 +32,7 @@ public class FileAdapter : IReportAdapter
             {
                 using var fs = File.Open(path, FileMode.Append);
                 using var sw = new StreamWriter(fs);
-                sw.WriteLine($"\"{name}\",\"{totalRecv}\",\"{totalSend}\",\"{elapsed.TotalMilliseconds}\"");
+                sw.WriteLine($"\"{name}\",\"{totalRecv}\",\"{totalSend}\",\"{elapsed}\"");
                 break;
             }
             catch (System.IO.IOException)
