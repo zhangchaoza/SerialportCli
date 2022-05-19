@@ -80,6 +80,7 @@ public class TimerCommand
 
         await Task.WhenAll(waiter.Task, processSendTask, outputTask);
         OutPut();
+        Console.WriteLine();
         sp.Stop();
 
         // save report
@@ -117,7 +118,7 @@ public class TimerCommand
     {
         try
         {
-            Console.CursorVisible = false;
+            try { Console.CursorVisible = false; } catch { }
             while (!token.IsCancellationRequested)
             {
                 OutPut();
@@ -126,7 +127,7 @@ public class TimerCommand
         }
         finally
         {
-            Console.CursorVisible = true;
+            try { Console.CursorVisible = true; } catch { }
         }
     }
 
