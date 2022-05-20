@@ -110,7 +110,7 @@ namespace SerialportCli
         {
             try
             {
-                Console.CursorVisible = false;
+                try { Console.CursorVisible = false; } catch { }
                 while (!token.IsCancellationRequested)
                 {
                     OutPut();
@@ -119,7 +119,7 @@ namespace SerialportCli
             }
             finally
             {
-                Console.CursorVisible = true;
+                try { Console.CursorVisible = true; } catch { }
             }
         }
 
