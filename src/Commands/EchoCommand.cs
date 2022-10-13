@@ -11,6 +11,7 @@ namespace SerialportCli
     using System.Threading.Tasks;
     using System.Collections.Concurrent;
     using System.Linq;
+    using System.CommandLine.NamingConventionBinder;
 
     internal static class EchoCommand
     {

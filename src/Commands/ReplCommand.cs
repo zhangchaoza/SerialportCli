@@ -14,6 +14,7 @@ namespace SerialportCli
     using System.IO;
     using SerialportCli.Extensions;
     using SerialportCli.Natives;
+    using System.CommandLine.NamingConventionBinder;
 
     internal static class ReplCommand
     {

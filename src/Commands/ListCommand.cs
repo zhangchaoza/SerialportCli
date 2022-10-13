@@ -7,6 +7,7 @@ namespace SerialportCli
     using System.IO.Ports;
     using Pastel;
     using System.Linq;
+    using System.CommandLine.NamingConventionBinder;
 
     internal static class ListCommand
     {

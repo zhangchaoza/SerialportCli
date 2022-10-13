@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Bogus;
 using Pastel;
 using SerialportCli.Report;
+using System.CommandLine.NamingConventionBinder;
 
 namespace SerialportCli;
 

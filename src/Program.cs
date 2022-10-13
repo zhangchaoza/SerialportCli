@@ -18,53 +18,57 @@
             }
             var rootCommand = new RootCommand("Serialport Cli tool");
 
-            var builder = new CommandLineBuilder(rootCommand)
-                .AddCommand(ListCommand.Build())
-                .AddCommand(EchoCommand.Build())
-                .AddCommand(ReplCommand.Build())
-                .AddCommand(TimerCommand.Build())
-                .AddGlobalOption(new Option<LogLevel>(
-                    new string[] { "--Verbose", "-v" },
-                    description: "Set the verbosity level.",
-                    parseArgument: r =>
+            rootCommand.Add(ListCommand.Build());
+            rootCommand.Add(EchoCommand.Build());
+            rootCommand.Add(ReplCommand.Build());
+            rootCommand.Add(TimerCommand.Build());
+
+            rootCommand.AddGlobalOption(new Option<LogLevel>(
+                new string[] { "--Verbose", "-v" },
+                description: "Set the verbosity level.",
+                parseArgument: r =>
+                {
+                    if (r.Tokens.Any())
                     {
-                        if (r.Tokens.Any())
-                        {
-                            return Enum.GetValues<LogLevel>().First(i => Enum.GetName<LogLevel>(i).StartsWith(r.Tokens[0].Value, StringComparison.OrdinalIgnoreCase));
-                        }
-                        else
-                        {
-                            return LogLevel.Normal;
-                        }
-                    },
-                    isDefault: true))
-                // .AddGlobalOption(new Option<bool>("--no-colors", description: "disable colorizer output.", getDefaultValue: () => false))
-                .AddGlobalOption(new Option<bool>("--no-ansi", description: "disable ansi output.", getDefaultValue: () => false))
-                .AddGlobalOption(new Option<bool>("--pause", description: "pause when finish execute command.", getDefaultValue: () => false))
-                .ParseResponseFileAs(responseFileHandling: ResponseFileHandling.ParseArgsAsSpaceSeparated)
+                        return Enum.GetValues<LogLevel>().First(i => Enum.GetName<LogLevel>(i)!.StartsWith(r.Tokens[0].Value, StringComparison.OrdinalIgnoreCase));
+                    }
+                    else
+                    {
+                        return LogLevel.Normal;
+                    }
+                },
+                isDefault: true));
+
+            // rootCommand.AddGlobalOption(new Option<bool>("--no-colors", description: "disable colorizer output.", getDefaultValue: () => false));
+            var noAnsiOption = new Option<bool>("--no-ansi", description: "disable ansi output.", getDefaultValue: () => false);
+            rootCommand.AddGlobalOption(noAnsiOption);
+            var pauseOption = new Option<bool>("--pause", description: "pause when finish execute command.", getDefaultValue: () => false);
+            rootCommand.AddGlobalOption(new Option<bool>("--pause", description: "pause when finish execute command.", getDefaultValue: () => false));
+
+            var builder = new CommandLineBuilder(rootCommand)
                 .UseDefaults()
                 .Build();
 
-            ProcessBeforeInvoke(builder.Parse(args));
+            ProcessBeforeInvoke(builder.Parse(args), noAnsiOption);
 
             var exitCode = builder.InvokeAsync(args).Result;
             Console.WriteLine();
 
-            var pause = builder.Parse(args).ValueForOption<bool>("--pause");
+            var pause = builder.Parse(args).GetValueForOption<bool>(pauseOption);
             if (pause)
             {
-                Console.WriteLine($"Execute finished with exitcode {exitCode},press any keys to exit.");
+                Console.WriteLine($"Execute finished with exit code {exitCode},press any keys to exit.");
                 Console.ReadLine();
             }
 
             return exitCode;
         }
 
-        static void ProcessBeforeInvoke(ParseResult parseResult)
+        static void ProcessBeforeInvoke(ParseResult parseResult, Option<bool> option)
         {
             #region colorizer
 
-            var noAnsi = parseResult.ValueForOption<bool>("--no-ansi");
+            var noAnsi = parseResult.GetValueForOption<bool>(option);
             if (noAnsi)
             {
                 Pastel.ConsoleExtensions.Disable();
