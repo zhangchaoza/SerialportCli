@@ -5,5 +5,7 @@
     <PackageOutputPath>./nupkg</PackageOutputPath>
     <Copyright>Copyright © 2021 zhangchao</Copyright>
     <Authors>github.com/zhangchaoza</Authors>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 </Project>
