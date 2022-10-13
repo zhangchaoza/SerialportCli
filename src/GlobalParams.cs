@@ -25,15 +25,29 @@ namespace SerialportCli
 
     internal class SerialParams
     {
-        public string Name { get; set; }
+        public const int DEFAULT_BAUDRATE = 9600;
+        public const Parity DEFAULT_PARITY = Parity.None;
+        public const int DEFAULT_DATABITS = 8;
+        public const StopBits DEFAULT_STOPBITS = StopBits.One;
 
-        public int Baudrate { get; set; }
+        public SerialParams(string port, int baudRate, Parity parity, int dataBits, StopBits stopBits)
+        {
+            Port = port;
+            BaudRate = baudRate;
+            Parity = parity;
+            DataBits = dataBits;
+            StopBits = stopBits;
+        }
 
-        public Parity Parity { get; set; }
+        public string Port { get; }
 
-        public int Databits { get; set; }
+        public int BaudRate { get; } = DEFAULT_BAUDRATE;
 
-        public StopBits Stopbits { get; set; }
+        public Parity Parity { get; } = DEFAULT_PARITY;
+
+        public int DataBits { get; } = DEFAULT_DATABITS;
+
+        public StopBits StopBits { get; } = DEFAULT_STOPBITS;
 
     }
 }

@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.IO.Ports;
 using Pastel;
+using SerialportCli.IO.Ports;
 
 namespace SerialportCli;
 
@@ -8,7 +9,7 @@ internal static class SerialPortUtils
 {
     public static string GetPortInfo(SerialParams @params)
     {
-        return $"{"open".Pastel(Color.Gray)} {@params.Name.Pastel(Color.LightGreen)} {$"{@params.Baudrate},{GetParity(@params.Parity)},{@params.Databits},{GetStopbits(@params.Stopbits)}".Pastel(Color.Fuchsia)}";
+        return $"{"open".Pastel(Color.Gray)} {@params.Port.Pastel(Color.LightGreen)} {$"{@params.BaudRate},{GetParity(@params.Parity)},{@params.DataBits},{GetStopbits(@params.StopBits)}".Pastel(Color.Fuchsia)}";
 
         string GetParity(Parity p) => p switch
         {
@@ -29,15 +30,13 @@ internal static class SerialPortUtils
         };
     }
 
-    public static SerialPort CreatePort(SerialParams @params)
+    public static SerialPortWrapper CreatePort(SerialParams @params)
     {
-        return new SerialPort(@params.Name, @params.Baudrate, @params.Parity, @params.Databits, @params.Stopbits)
-        {
-            // Handshake = Handshake.XOnXOff,
-            // RtsEnable = true,
-            // ReadTimeout = 250,
-            // WriteTimeout = 250,
-        };
+        return new SerialPortWrapper(
+            new SerialConnectInfo(@params.Port, @params.BaudRate, @params.Parity, @params.DataBits, @params.StopBits),
+            readTimeout: 3000,
+            writeTimeout: 3000
+        );
     }
 
 }

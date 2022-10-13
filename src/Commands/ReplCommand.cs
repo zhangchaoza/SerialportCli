@@ -15,43 +15,44 @@ namespace SerialportCli
     using SerialportCli.Extensions;
     using SerialportCli.Natives;
     using System.CommandLine.NamingConventionBinder;
+    using SerialportCli.IO.Ports;
+    using SerialportCli.IO;
+    using SerialportCli.Utils;
 
     internal static class ReplCommand
     {
 
         private static long totalRecv;
         private static long totalSend;
-        private static SerialParams serialParams;
-        private static ReplParams replParams;
+        private static SerialParams? serialParams;
+        private static ReplParams? replParams;
 
         public static Command Build()
         {
             var command = new Command("repl", "read and write data in repl mode.");
-            command.AddArgument(new Argument<string>("name", description: "name of serial port"));
-            command.AddOption(new Option<int>(new string[] { "--baudrate", "-b" }, description: "baudrate of serial port", getDefaultValue: () => 9600));
-            command.AddOption(new Option<Parity>(
-                new string[] { "--parity", "-p" },
-                description: "Parity of serial port.",
+            command.AddArgument(new Argument<string>("port", description: "port name of serial port"));
+            command.AddOption(new Option<int>(new string[] { "--baudrate", "-b" }, description: "baudrate of serial port", getDefaultValue: () => SerialParams.DEFAULT_BAUDRATE));
+            command.AddOption(new Option<Parity>(new string[] { "--parity", "-p" }, description: "Parity of serial port.",
                 parseArgument: r =>
                 {
                     if (r.Tokens.Any())
                     {
-                        return Enum.GetValues<Parity>().First(i => Enum.GetName<Parity>(i).StartsWith(r.Tokens[0].Value, StringComparison.OrdinalIgnoreCase));
+                        return Enum.GetValues<Parity>().First(i => Enum.GetName<Parity>(i)!.StartsWith(r.Tokens[0].Value, StringComparison.OrdinalIgnoreCase));
                     }
                     else
                     {
-                        return Parity.None;
+                        return SerialParams.DEFAULT_PARITY;
                     }
                 },
                 isDefault: true));
-            command.AddOption(new Option<int>(new string[] { "--databits", "-d" }, description: "databits of serial port", getDefaultValue: () => 8));
-            command.AddOption(new Option<StopBits>(new string[] { "--stopbits", "-s" }, description: "stopBits of serial port", getDefaultValue: () => StopBits.One));
+            command.AddOption(new Option<int>(new string[] { "--databits", "-d" }, description: "databits of serial port", getDefaultValue: () => SerialParams.DEFAULT_DATABITS));
+            command.AddOption(new Option<StopBits>(new string[] { "--stopbits", "-s" }, description: "stopBits of serial port", getDefaultValue: () => SerialParams.DEFAULT_STOPBITS));
             command.AddOption(new Option<bool>(new string[] { "--string" }, description: "output string", getDefaultValue: () => false));
             command.Handler = CommandHandler.Create<InvocationContext, GlobalParams, SerialParams, ReplParams>(Run);
             return command;
         }
 
-        private static int Run(InvocationContext context, GlobalParams globalParams, SerialParams serialParams, ReplParams replParams)
+        private static async Task<int> Run(InvocationContext context, GlobalParams globalParams, SerialParams serialParams, ReplParams replParams)
         {
             ReplCommand.serialParams = serialParams;
             ReplCommand.replParams = replParams;
@@ -69,7 +70,7 @@ namespace SerialportCli
 
             while (!context.GetCancellationToken().IsCancellationRequested)
             {
-                if (!ConsoleExtension.SafeReadline(out var line))
+                if (!ConsoleExtension.SafeReadLine(out var line))
                 {
                     break;
                 }
@@ -82,47 +83,43 @@ namespace SerialportCli
                 line = line + "\r\n";
 
                 var l = Encoding.UTF8.GetByteCount(line);
-                var bytes = ArrayPool<byte>.Shared.Rent(l);
-                Encoding.UTF8.GetBytes(line, 0, line.Length, bytes, 0);
-                port.Write(bytes, 0, l);
-                Interlocked.Add(ref totalSend, l);
-                OutputSend(line, bytes, l);
-                ArrayPool<byte>.Shared.Return(bytes);
+                using var buffer = MemoryBuffer.Create(l);
+                Encoding.UTF8.GetBytes(line, buffer.Span);
+                await port.WriteAsync(buffer.Memory);
+                Interlocked.Add(ref totalSend, buffer.Length);
+                OutputSend(buffer);
             }
 
             return 0;
         }
 
-        private static void OnDataRecv(object sender, SerialDataReceivedEventArgs e)
+        private static Task OnDataRecv(object? sender, AsyncSerialDataReceivedEventHandlerArgs e)
         {
-            var port = ((SerialPort)sender);
-            var l = port.BytesToRead;
-            var bytes = ArrayPool<byte>.Shared.Rent(l);
-            port.Read(bytes, 0, l);
-            Interlocked.Add(ref totalRecv, l);
-            OutputRecv(bytes, l);
-            ArrayPool<byte>.Shared.Return(bytes);
+            Interlocked.Add(ref totalRecv, e.Buffer.Length);
+            OutputRecv(e.Buffer);
+            e.Buffer.Dispose();
+            return Task.CompletedTask;
         }
 
-        private static void OutputRecv(byte[] bytes, int length)
+        private static void OutputRecv(MemoryBuffer buffer)
         {
-            if (replParams.String)
+            if (replParams!.String)
             {
-                var s = System.Text.Encoding.UTF8.GetString(bytes, 0, length);
+                var s = System.Text.Encoding.UTF8.GetString(buffer.Span);
                 Console.Write(s);
             }
             else
             {
-                var recv = BitConverter.ToString(bytes, 0, length);
+                var recv = buffer.Memory.ToSimpleHexString();
                 Console.WriteLine($"{"Total Recv:".Pastel(Color.Gray)}{totalRecv.ToString().Pastel(Color.Gray)}> {recv.Pastel(Color.LightBlue)}");
             }
         }
 
-        private static void OutputSend(string line, byte[] bytes, int length)
+        private static void OutputSend(MemoryBuffer buffer)
         {
-            if (!replParams.String)
+            if (!replParams!.String)
             {
-                var send = BitConverter.ToString(bytes, 0, length);
+                var send = buffer.Memory.ToSimpleHexString();
                 Console.WriteLine($"{"Total Send:".Pastel(Color.Gray)}{totalSend.ToString().Pastel(Color.Gray)}> {send.Pastel(Color.LightGreen)}");
             }
         }

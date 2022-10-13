@@ -12,21 +12,23 @@ namespace SerialportCli
     using System.Collections.Concurrent;
     using System.Linq;
     using System.CommandLine.NamingConventionBinder;
+    using SerialportCli.IO.Ports;
+    using SerialportCli.IO;
 
     internal static class EchoCommand
     {
-        private static GlobalParams globalParams;
-        private static SerialParams serialParams;
-        private static EchoParams echoParams;
+        private static GlobalParams? globalParams;
+        private static SerialParams? serialParams;
+        private static EchoParams? echoParams;
         private static long totalRecv;
         private static long totalSend;
-        private static BlockingCollection<(byte[] d, int l)> recvQueue = new BlockingCollection<(byte[] d, int l)>();
+        private static BlockingCollection<MemoryBuffer> recvQueue = new BlockingCollection<MemoryBuffer>();
 
         public static Command Build()
         {
             var command = new Command("echo", "connect to a serial port and echo receive.");
-            command.AddArgument(new Argument<string>("name", description: "name of serial port"));
-            command.AddOption(new Option<int>(new string[] { "--baudrate", "-b" }, description: "baudrate of serial port", getDefaultValue: () => 9600));
+            command.AddArgument(new Argument<string>("port", description: "port name of serial port"));
+            command.AddOption(new Option<int>(new string[] { "--baudrate", "-b" }, description: "baudrate of serial port", getDefaultValue: () => SerialParams.DEFAULT_BAUDRATE));
             command.AddOption(new Option<Parity>(
                 new string[] { "--parity", "-p" },
                 description: "Parity of serial port.",
@@ -34,16 +36,16 @@ namespace SerialportCli
                 {
                     if (r.Tokens.Any())
                     {
-                        return Enum.GetValues<Parity>().First(i => Enum.GetName<Parity>(i).StartsWith(r.Tokens[0].Value, StringComparison.OrdinalIgnoreCase));
+                        return Enum.GetValues<Parity>().First(i => Enum.GetName<Parity>(i)!.StartsWith(r.Tokens[0].Value, StringComparison.OrdinalIgnoreCase));
                     }
                     else
                     {
-                        return Parity.None;
+                        return SerialParams.DEFAULT_PARITY;
                     }
                 },
                 isDefault: true));
-            command.AddOption(new Option<int>(new string[] { "--databits", "-d" }, description: "databits of serial port", getDefaultValue: () => 8));
-            command.AddOption(new Option<StopBits>(new string[] { "--stopbits", "-s" }, description: "stopBits of serial port", getDefaultValue: () => StopBits.One));
+            command.AddOption(new Option<int>(new string[] { "--databits", "-d" }, description: "databits of serial port", getDefaultValue: () => SerialParams.DEFAULT_DATABITS));
+            command.AddOption(new Option<StopBits>(new string[] { "--stopbits", "-s" }, description: "stopBits of serial port", getDefaultValue: () => SerialParams.DEFAULT_STOPBITS));
             command.AddOption(new Option<int?>(new string[] { "--init-bytes" }, description: "send bytes when open serial port"));
             command.Handler = CommandHandler.Create<InvocationContext, GlobalParams, SerialParams, EchoParams>(Run);
             return command;
@@ -59,7 +61,7 @@ namespace SerialportCli
             port.Open();
             port.DataReceived += OnDataRecv;
 
-            var processSendTask = Task.Run(() => ProcessSend(port, context.GetCancellationToken()));
+            var processSendTask = Task.Run(async () => await ProcessSend(port, context.GetCancellationToken()));
             var outputTask = Task.Run(() => OutputLoop(context.GetCancellationToken()));
 
             var waiter = new TaskCompletionSource<int>();
@@ -72,9 +74,9 @@ namespace SerialportCli
             if (echoParams.InitBytes.HasValue)
             {
                 Console.WriteLine($"send init bytes {echoParams.InitBytes}");
-                var bytes = ArrayPool<byte>.Shared.Rent(echoParams.InitBytes.Value);
-                bytes.AsSpan().Fill(1);
-                recvQueue.TryAdd((bytes, echoParams.InitBytes.Value));
+                var buffer = MemoryBuffer.Create(echoParams.InitBytes.Value);
+                buffer.Span.Fill(1);
+                recvQueue.TryAdd(buffer);
             }
 
             await Task.WhenAll(waiter.Task, processSendTask, outputTask);
@@ -83,25 +85,22 @@ namespace SerialportCli
             return 0;
         }
 
-        private static void OnDataRecv(object sender, SerialDataReceivedEventArgs e)
+        private static Task OnDataRecv(object? sender, AsyncSerialDataReceivedEventHandlerArgs e)
         {
-            var port = ((SerialPort)sender);
-            var l = port.BytesToRead;
-            var bytes = ArrayPool<byte>.Shared.Rent(l);
-            port.Read(bytes, 0, l);
-            Interlocked.Add(ref totalRecv, l);
-            recvQueue.TryAdd((bytes, l));
+            Interlocked.Add(ref totalRecv, e.Buffer.Length);
+            recvQueue.TryAdd(e.Buffer);
+            return Task.CompletedTask;
         }
 
-        private static void ProcessSend(SerialPort port, CancellationToken token)
+        private static async Task ProcessSend(SerialPortWrapper port, CancellationToken token)
         {
             try
             {
                 foreach (var data in recvQueue.GetConsumingEnumerable(token))
                 {
-                    port.Write(data.d, 0, data.l);
-                    ArrayPool<byte>.Shared.Return(data.d);
-                    Interlocked.Add(ref totalSend, data.l);
+                    await port.WriteAsync(data.Memory);
+                    Interlocked.Add(ref totalSend, data.Length);
+                    data.Dispose();
                 }
             }
             catch (System.OperationCanceledException) { }
@@ -127,7 +126,7 @@ namespace SerialportCli
         private static void OutPut()
         {
             var output = $"{"Total:".Pastel(Color.Gray)}{totalRecv.ToString().Pastel(Color.DarkRed)} => {totalSend.ToString().Pastel(Color.DarkRed)}";
-            if (EchoCommand.globalParams.NoAnsi)
+            if (EchoCommand.globalParams!.NoAnsi)
             {
                 Console.SetCursorPosition(0, Console.CursorTop);
                 Console.Write(output);

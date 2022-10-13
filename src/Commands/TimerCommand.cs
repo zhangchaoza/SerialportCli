@@ -12,23 +12,25 @@ using Bogus;
 using Pastel;
 using SerialportCli.Report;
 using System.CommandLine.NamingConventionBinder;
+using SerialportCli.IO.Ports;
+using SerialportCli.IO;
 
 namespace SerialportCli;
 
 public class TimerCommand
 {
     private static Randomizer rand = new Randomizer();
-    private static GlobalParams globalParams;
-    private static SerialParams serialParams;
-    private static FakeParams fakeParams;
+    private static GlobalParams? globalParams;
+    private static SerialParams? serialParams;
+    private static FakeParams? fakeParams;
     private static long totalRecv;
     private static long totalSend;
 
     public static Command Build()
     {
         var command = new Command("timer", "connect to a serial port and timer receive.");
-        command.AddArgument(new Argument<string>("name", description: "name of serial port"));
-        command.AddOption(new Option<int>(new string[] { "--baudrate", "-b" }, description: "baudrate of serial port", getDefaultValue: () => 9600));
+        command.AddArgument(new Argument<string>("port", description: "port name of serial port"));
+        command.AddOption(new Option<int>(new string[] { "--baudrate", "-b" }, description: "baudrate of serial port", getDefaultValue: () => SerialParams.DEFAULT_BAUDRATE));
         command.AddOption(new Option<Parity>(
             new string[] { "--parity", "-p" },
             description: "Parity of serial port.",
@@ -36,20 +38,20 @@ public class TimerCommand
             {
                 if (r.Tokens.Any())
                 {
-                    return Enum.GetValues<Parity>().First(i => Enum.GetName<Parity>(i).StartsWith(r.Tokens[0].Value, StringComparison.OrdinalIgnoreCase));
+                    return Enum.GetValues<Parity>().First(i => Enum.GetName<Parity>(i)!.StartsWith(r.Tokens[0].Value, StringComparison.OrdinalIgnoreCase));
                 }
                 else
                 {
-                    return Parity.None;
+                    return SerialParams.DEFAULT_PARITY;
                 }
             },
             isDefault: true));
-        command.AddOption(new Option<int>(new string[] { "--databits", "-d" }, description: "databits of serial port", getDefaultValue: () => 8));
-        command.AddOption(new Option<StopBits>(new string[] { "--stopbits", "-s" }, description: "stopBits of serial port", getDefaultValue: () => StopBits.One));
-        command.AddOption(new Option<int?>(new string[] { "--fake-length" }, description: "length of faked bytes.", getDefaultValue: () => 8));
-        command.AddOption(new Option<uint>(new string[] { "--interval" }, description: "write data interval.", getDefaultValue: () => 1000));
-        command.AddOption(new Option<long>(new string[] { "--timeout" }, description: "data fake timeout (ms).-1 means infinite.", getDefaultValue: () => 60000));
-        command.AddOption(new Option<string>(new string[] { "--report-path" }, description: "path of report.(like file://sp_report.csv or file:///C:/sp_report.csv)", getDefaultValue: () => "file://sp_report.csv"));
+        command.AddOption(new Option<int>(new string[] { "--databits", "-d" }, description: "databits of serial port", getDefaultValue: () => SerialParams.DEFAULT_DATABITS));
+        command.AddOption(new Option<StopBits>(new string[] { "--stopbits", "-s" }, description: "stopBits of serial port", getDefaultValue: () => SerialParams.DEFAULT_STOPBITS));
+        command.AddOption(new Option<int?>(new string[] { "--fake-length" }, description: "length of faked bytes.", getDefaultValue: () => FakeParams.DEFAULT_FAKE_LENGTH));
+        command.AddOption(new Option<uint>(new string[] { "--interval" }, description: "write data interval.", getDefaultValue: () => FakeParams.DEFAULT_INTERVAL));
+        command.AddOption(new Option<long>(new string[] { "--timeout" }, description: "data fake timeout (ms).-1 means infinite.", getDefaultValue: () => FakeParams.DEFAULT_TIMEOUT));
+        command.AddOption(new Option<string>(new string[] { "--report-path" }, description: "path of report.(like file://sp_report.csv or file:///C:/sp_report.csv)", getDefaultValue: () => FakeParams.DEFAULT_REPORT_PATH));
         command.Handler = CommandHandler.Create<InvocationContext, GlobalParams, SerialParams, TimerCommand, FakeParams>(Run);
         return command;
     }
@@ -85,30 +87,31 @@ public class TimerCommand
         sp.Stop();
 
         // save report
-        ReportUtils.SaveReport(fakeParams.ReportPath, serialParams.Name, totalRecv, totalSend, sp.ElapsedMilliseconds);
+        ReportUtils.SaveReport(fakeParams.ReportPath, serialParams.Port, totalRecv, totalSend, sp.ElapsedMilliseconds);
 
         return 0;
     }
 
-    private static void OnDataRecv(object sender, SerialDataReceivedEventArgs e)
+    private static Task OnDataRecv(object? sender, AsyncSerialDataReceivedEventHandlerArgs e)
     {
-        var port = ((SerialPort)sender);
-        var l = port.BytesToRead;
-        var bytes = ArrayPool<byte>.Shared.Rent(l);
-        port.Read(bytes, 0, l);
-        Interlocked.Add(ref totalRecv, l);
+        Interlocked.Add(ref totalRecv, e.Buffer.Length);
+        return Task.CompletedTask;
     }
 
-    private static async Task ProcessSend(SerialPort port, CancellationToken token)
+    private static async Task ProcessSend(SerialPortWrapper port, CancellationToken token)
     {
         try
         {
-            var _interval = TimeSpan.FromMilliseconds(fakeParams.Interval);
+            var _interval = TimeSpan.FromMilliseconds(fakeParams!.Interval);
             while (!token.IsCancellationRequested)
             {
-                var fakeBuffer = rand.Bytes(fakeParams.FakeLength);
-                port.Write(fakeBuffer, 0, fakeBuffer.Length);
-                Interlocked.Add(ref totalSend, fakeBuffer.Length);
+                var buffer = MemoryBuffer.Create(fakeParams.FakeLength);
+                for (int i = 0; i < buffer.Length; i++)
+                {
+                    buffer.Span[i] = rand.Byte();
+                }
+                await port.WriteAsync(buffer.Memory);
+                Interlocked.Add(ref totalSend, buffer.Length);
                 await Task.Delay(_interval, token);
             }
         }
@@ -135,7 +138,7 @@ public class TimerCommand
     private static void OutPut()
     {
         var output = $"{"Total:".Pastel(Color.Gray)}RX: {totalRecv.ToString().Pastel(Color.DarkRed)} ,TX: {totalSend.ToString().Pastel(Color.DarkRed)}";
-        if (TimerCommand.globalParams.NoAnsi)
+        if (TimerCommand.globalParams!.NoAnsi)
         {
             Console.SetCursorPosition(0, Console.CursorTop);
             Console.Write(output);
@@ -148,12 +151,17 @@ public class TimerCommand
 
     internal class FakeParams
     {
-        public uint Interval { get; set; }
+        public const uint DEFAULT_INTERVAL = 1000;
+        public const long DEFAULT_TIMEOUT = 60000;
+        public const string DEFAULT_REPORT_PATH = "file://sp_report.csv";
+        public const int DEFAULT_FAKE_LENGTH = 8;
 
-        public long Timeout { get; set; }
+        public uint Interval { get; set; } = DEFAULT_INTERVAL;
 
-        public string ReportPath { get; set; }
+        public long Timeout { get; set; } = DEFAULT_TIMEOUT;
 
-        public int FakeLength { get; set; }
+        public string ReportPath { get; set; } = DEFAULT_REPORT_PATH;
+
+        public int FakeLength { get; set; } = DEFAULT_FAKE_LENGTH;
     }
 }

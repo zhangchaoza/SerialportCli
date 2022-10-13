@@ -6,7 +6,7 @@ namespace SerialportCli.Extensions
 
     internal static class ConsoleExtension
     {
-        public static bool SafeReadline(out string? line)
+        public static bool SafeReadLine(out string? line)
         {
             line = default;
             try
