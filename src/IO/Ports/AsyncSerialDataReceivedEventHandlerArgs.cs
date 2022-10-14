@@ -1,13 +1,13 @@
-namespace SerialportCli.IO.Ports;
-using AsyncEventHandlers;
+// namespace SerialportCli.IO.Ports;
+// using AsyncEventHandlers;
 
-public class AsyncSerialDataReceivedEventHandlerArgs : AsyncEventArgs
-{
+// public class AsyncSerialDataReceivedEventHandlerArgs : AsyncEventArgs
+// {
 
-    public AsyncSerialDataReceivedEventHandlerArgs(MemoryBuffer buffer)
-    {
-        Buffer = buffer;
-    }
+//     public AsyncSerialDataReceivedEventHandlerArgs(MemoryBuffer buffer)
+//     {
+//         Buffer = buffer;
+//     }
 
-    public MemoryBuffer Buffer { get; }
-}
+//     public MemoryBuffer Buffer { get; }
+// }

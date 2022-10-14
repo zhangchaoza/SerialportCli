@@ -22,7 +22,7 @@ namespace SerialportCli
         private static EchoParams? echoParams;
         private static long totalRecv;
         private static long totalSend;
-        private static BlockingCollection<MemoryBuffer> recvQueue = new BlockingCollection<MemoryBuffer>();
+        private static BlockingCollection<ReadOnlyMemory<byte>> recvQueue = new BlockingCollection<ReadOnlyMemory<byte>>();
 
         public static Command Build()
         {
@@ -59,7 +59,7 @@ namespace SerialportCli
             Console.WriteLine(SerialPortUtils.GetPortInfo(serialParams));
             var port = SerialPortUtils.CreatePort(serialParams);
             port.Open();
-            port.DataReceived += OnDataRecv;
+            port.ProcessReceivedHandler = ProcessData;
 
             var processSendTask = Task.Run(async () => await ProcessSend(port, context.GetCancellationToken()));
             var outputTask = Task.Run(() => OutputLoop(context.GetCancellationToken()));
@@ -73,10 +73,7 @@ namespace SerialportCli
 
             if (echoParams.InitBytes.HasValue)
             {
-                Console.WriteLine($"send init bytes {echoParams.InitBytes}");
-                var buffer = MemoryBuffer.Create(echoParams.InitBytes.Value);
-                buffer.Span.Fill(1);
-                recvQueue.TryAdd(buffer);
+                recvQueue.TryAdd(new Bogus.Randomizer().Bytes(echoParams.InitBytes.Value).AsMemory());
             }
 
             await Task.WhenAll(waiter.Task, processSendTask, outputTask);
@@ -85,11 +82,15 @@ namespace SerialportCli
             return 0;
         }
 
-        private static Task OnDataRecv(object? sender, AsyncSerialDataReceivedEventHandlerArgs e)
+
+        private static Task<ReadOnlySequence<byte>> ProcessData(ReadOnlySequence<byte> buffer, CancellationToken token)
         {
-            Interlocked.Add(ref totalRecv, e.Buffer.Length);
-            recvQueue.TryAdd(e.Buffer);
-            return Task.CompletedTask;
+            Interlocked.Add(ref totalRecv, buffer.Length);
+            foreach (var m in buffer)
+            {
+                recvQueue.TryAdd(m);
+            }
+            return Task.FromResult(buffer.Slice(buffer.End));
         }
 
         private static async Task ProcessSend(SerialPortWrapper port, CancellationToken token)
@@ -98,9 +99,8 @@ namespace SerialportCli
             {
                 foreach (var data in recvQueue.GetConsumingEnumerable(token))
                 {
-                    await port.WriteAsync(data.Memory);
+                    await port.WriteAsync(data);
                     Interlocked.Add(ref totalSend, data.Length);
-                    data.Dispose();
                 }
             }
             catch (System.OperationCanceledException) { }

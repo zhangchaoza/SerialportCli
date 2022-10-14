@@ -59,7 +59,7 @@ namespace SerialportCli
             Console.WriteLine(SerialPortUtils.GetPortInfo(serialParams));
             var port = SerialPortUtils.CreatePort(serialParams);
             port.Open();
-            port.DataReceived += OnDataRecv;
+            port.ProcessReceivedHandler = ProcessData;
 
             context.GetCancellationToken().Register(() =>
             {
@@ -93,24 +93,23 @@ namespace SerialportCli
             return 0;
         }
 
-        private static Task OnDataRecv(object? sender, AsyncSerialDataReceivedEventHandlerArgs e)
+        private static Task<ReadOnlySequence<byte>> ProcessData(ReadOnlySequence<byte> buffer, CancellationToken token)
         {
-            Interlocked.Add(ref totalRecv, e.Buffer.Length);
-            OutputRecv(e.Buffer);
-            e.Buffer.Dispose();
-            return Task.CompletedTask;
+            Interlocked.Add(ref totalRecv, buffer.Length);
+            OutputRecv(buffer);
+            return Task.FromResult(buffer.Slice(buffer.End));
         }
 
-        private static void OutputRecv(MemoryBuffer buffer)
+        private static void OutputRecv(ReadOnlySequence<byte> buffer)
         {
             if (replParams!.String)
             {
-                var s = System.Text.Encoding.UTF8.GetString(buffer.Span);
+                var s = System.Text.Encoding.UTF8.GetString(buffer);
                 Console.Write(s);
             }
             else
             {
-                var recv = buffer.Memory.ToSimpleHexString();
+                var recv = buffer.ToSimpleHexString();
                 Console.WriteLine($"{"Total Recv:".Pastel(Color.Gray)}{totalRecv.ToString().Pastel(Color.Gray)}> {recv.Pastel(Color.LightBlue)}");
             }
         }

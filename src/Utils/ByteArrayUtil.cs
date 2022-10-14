@@ -81,6 +81,26 @@ public static class ByteArrayUtil
         return sb.ToString();
     }
 
+    public static string ToSimpleHexString(this ReadOnlySequence<byte> sequence)
+    {
+        var sb = new System.Text.StringBuilder((int)(sequence.Length * 3 + 2));
+        sb.Append('[');
+
+        foreach (var sm in sequence)
+        {
+            for (int i = 0; i < sm.Span.Length; i++)
+            {
+                sb.Append(sm.Span[i].ToString("X2"));
+                if (i < sm.Span.Length - 1)
+                {
+                    sb.Append(' ');
+                }
+            }
+        }
+        sb.Append(']');
+        return sb.ToString();
+    }
+
     private static char WashingChar(char c)
     {
         if ((int)c <= 126 && (int)c >= 32)

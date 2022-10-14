@@ -1,16 +1,22 @@
 ﻿namespace SerialportCli.IO.Ports;
 
 using System;
+using System.Buffers;
+using System.IO.Pipelines;
 using System.IO.Ports;
-using System.Threading.Channels;
 using AsyncEventHandlers;
+
+public delegate Task<ReadOnlySequence<byte>> ProcessReceivedHandler(ReadOnlySequence<byte> buffer, CancellationToken token = default);
 
 public class SerialPortWrapper : IDisposable
 {
+
     private SerialPort port;
-    private Channel<int> recvEventChannel = Channel.CreateUnbounded<int>();
     private CancellationTokenSource cts = new CancellationTokenSource();
-    private readonly AsyncEventHandler<AsyncSerialDataReceivedEventHandlerArgs> dataReceived = new AsyncEventHandler<AsyncSerialDataReceivedEventHandlerArgs>();
+    private CancellationTokenSource ctsRead = new CancellationTokenSource();
+    private Pipe readerPipe = new Pipe();
+    private ProcessReceivedHandler? processReceivedHandler;
+    // private readonly AsyncEventHandler<AsyncSerialDataReceivedEventHandlerArgs> dataReceived = new AsyncEventHandler<AsyncSerialDataReceivedEventHandlerArgs>();
 
     public SerialPortWrapper(SerialConnectInfo connectInfo, int readTimeout, int writeTimeout)
     {
@@ -19,48 +25,52 @@ public class SerialPortWrapper : IDisposable
         port.WriteTimeout = writeTimeout;
         // port.Handshake = Handshake.XOnXOff;
         // port.RtsEnable = true;
-        port.DataReceived += OnDataRecv;
     }
 
-    public event AsyncEvent<AsyncSerialDataReceivedEventHandlerArgs> DataReceived
+    // public event AsyncEvent<AsyncSerialDataReceivedEventHandlerArgs> DataReceived
+    // {
+    //     add { dataReceived.Register(value); }
+    //     remove { dataReceived.Unregister(value); }
+    // }
+
+    public ProcessReceivedHandler? ProcessReceivedHandler
     {
-        add { dataReceived.Register(value); }
-        remove { dataReceived.Unregister(value); }
+        get => processReceivedHandler;
+        set
+        {
+            if (value is null)
+            {
+                ctsRead.Cancel();
+            }
+            else
+            {
+                ctsRead = new CancellationTokenSource();
+                _ = Task.Run(ReadLoop);
+            }
+            processReceivedHandler = value;
+        }
     }
 
     public void Open()
     {
+        if (port.IsOpen)
+        {
+            throw new Exception("Port already opened.");
+        }
+
         if (cts.IsCancellationRequested)// re-open
         {
             cts = new CancellationTokenSource();
-            recvEventChannel = Channel.CreateUnbounded<int>();
         }
-
-        // event loop
-        _ = Task.Run(async () =>
-        {
-            await foreach (var s in recvEventChannel.Reader.ReadAllAsync(cts.Token))
-            {
-                try
-                {
-                    if (port.BytesToRead > 0)
-                    {
-                        var buffer = MemoryBuffer.Create(port.BytesToRead);
-                        await ReadAsync(buffer.Memory, cts.Token);
-                        await dataReceived.InvokeAsync(this, new AsyncSerialDataReceivedEventHandlerArgs(buffer));
-                    }
-                }
-                catch (TimeoutException)
-                {
-                    continue;
-                }
-                catch (System.Exception)
-                {
-                    throw;
-                }
-            }
-        });
         port.Open();
+
+        // recv pipe loop
+        _ = Task.Run(RecvLoop);
+
+        if (processReceivedHandler is not null && !ctsRead.IsCancellationRequested)
+        {
+            ProcessReceivedHandler = processReceivedHandler;
+        }
     }
 
     public void Close()
@@ -69,7 +79,51 @@ public class SerialPortWrapper : IDisposable
         port.Close();
     }
 
-    public async Task<int> ReadAsync(Memory<byte> memory, CancellationToken token = default(CancellationToken))
+    public async Task WriteAsync(ReadOnlyMemory<byte> memory, CancellationToken token = default(CancellationToken))
+    {
+        CheckAvailable();
+
+        using var writeCts = new CancellationTokenSource(port.WriteTimeout);// 每次写入的超时时间
+        var _token = CancellationTokenSource.CreateLinkedTokenSource(writeCts.Token, token).Token;
+        using var _tr = _token.Register(() =>
+        {
+            port.DiscardOutBuffer();// 必要,可以触发WriteAsync cancel
+        });
+
+        try
+        {
+            await port.BaseStream.WriteAsync(memory, token);
+            await port.BaseStream.FlushAsync();
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException) when (writeCts.IsCancellationRequested)
+        {
+            throw new TimeoutException("The asynchronous write operation timed out.");
+        }
+        catch (IOException) when (writeCts.IsCancellationRequested && !token.IsCancellationRequested)
+        {
+            throw new TimeoutException("The asynchronous write operation timed out.");
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+    }
+
+    public Task<int> ReadAsync(Memory<byte> memory, CancellationToken token = default(CancellationToken))
+    {
+        throw new NotImplementedException();
+    }
+
+    public void Dispose()
+    {
+        port.Dispose();
+    }
+
+    private async Task<int> ReadCoreAsync(Memory<byte> memory, CancellationToken token = default(CancellationToken))
     {
         CheckAvailable();
 
@@ -110,45 +164,6 @@ public class SerialPortWrapper : IDisposable
         }
     }
 
-    public async Task WriteAsync(Memory<byte> memory, CancellationToken token = default(CancellationToken))
-    {
-        CheckAvailable();
-
-        using var writeCts = new CancellationTokenSource(port.WriteTimeout);// 每次写入的超时时间
-        var _token = CancellationTokenSource.CreateLinkedTokenSource(writeCts.Token, token).Token;
-        using var _tr = _token.Register(() =>
-        {
-            port.DiscardOutBuffer();// 必要,可以触发WriteAsync cancel
-        });
-
-        try
-        {
-            await port.BaseStream.WriteAsync(memory, token);
-            await port.BaseStream.FlushAsync();
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (OperationCanceledException) when (writeCts.IsCancellationRequested)
-        {
-            throw new TimeoutException("The asynchronous write operation timed out.");
-        }
-        catch (IOException) when (writeCts.IsCancellationRequested && !token.IsCancellationRequested)
-        {
-            throw new TimeoutException("The asynchronous write operation timed out.");
-        }
-        catch (Exception)
-        {
-            throw;
-        }
-    }
-
-    public void Dispose()
-    {
-        port.Dispose();
-    }
-
     private void CheckAvailable()
     {
         if (!port.IsOpen)
@@ -173,12 +188,51 @@ public class SerialPortWrapper : IDisposable
         }
     }
 
-    private void OnDataRecv(object sender, SerialDataReceivedEventArgs e)
+    private async Task RecvLoop()
     {
-        if (dataReceived.Callbacks.Count > 0)
+        var _writer = readerPipe.Writer;
+        while (!cts.IsCancellationRequested)
         {
-            recvEventChannel.Writer.TryWrite(0);
+            try
+            {
+                var buffer = _writer.GetMemory(256);
+                var l = await ReadCoreAsync(buffer, cts.Token);
+                _writer.Advance(l);
+
+                var result = await _writer.FlushAsync();
+                if (result.IsCompleted)
+                {
+                    break;
+                }
+            }
+            catch (TimeoutException)
+            {
+                continue;
+            }
+            catch (System.Exception)
+            {
+                throw;
+            }
         }
+        await _writer.CompleteAsync();
+    }
+
+    private async Task ReadLoop()
+    {
+        var _reader = readerPipe.Reader;
+        var _cts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ctsRead.Token);
+        while (!_cts.IsCancellationRequested)
+        {
+            var result = await _reader.ReadAsync(_cts.Token);
+            var buffer = result.Buffer;
+            var processBuffer = await (ProcessReceivedHandler?.Invoke(buffer, _cts.Token) ?? Task.FromResult(buffer.Slice(buffer.End)));
+            _reader.AdvanceTo(processBuffer.Start, processBuffer.End);
+            if (result.IsCompleted)
+            {
+                break;
+            }
+        }
+        await _reader.CompleteAsync();
     }
 
 }

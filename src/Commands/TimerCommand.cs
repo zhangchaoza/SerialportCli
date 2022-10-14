@@ -66,7 +66,7 @@ public class TimerCommand
         var sp = new Stopwatch();
         sp.Start();
         port.Open();
-        port.DataReceived += OnDataRecv;
+        port.ProcessReceivedHandler = ProcessData;
 
         var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(fakeParams.Timeout));
         var token = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, context.GetCancellationToken()).Token;
@@ -92,10 +92,10 @@ public class TimerCommand
         return 0;
     }
 
-    private static Task OnDataRecv(object? sender, AsyncSerialDataReceivedEventHandlerArgs e)
+    private static Task<ReadOnlySequence<byte>> ProcessData(ReadOnlySequence<byte> buffer, CancellationToken token)
     {
-        Interlocked.Add(ref totalRecv, e.Buffer.Length);
-        return Task.CompletedTask;
+        Interlocked.Add(ref totalRecv, buffer.Length);
+        return Task.FromResult(buffer.Slice(buffer.End));
     }
 
     private static async Task ProcessSend(SerialPortWrapper port, CancellationToken token)
