@@ -8,6 +8,7 @@ namespace SerialportCli
     using Pastel;
     using System.Linq;
     using System.CommandLine.NamingConventionBinder;
+    using SerialportCli.IO.Ports;
 
     internal static class ListCommand
     {
@@ -22,7 +23,7 @@ namespace SerialportCli
 
         private static int Run(LogLevel logLevel, InvocationContext context)
         {
-            var ports = SerialPort.GetPortNames();
+            var ports = SerialPortExtension.GetPortNames();
             var pages = GetPagesCount(ports.Length);
 
             var pagesPad = pages.ToString().Length + 1;
