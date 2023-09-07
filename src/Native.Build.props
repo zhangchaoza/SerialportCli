@@ -3,7 +3,7 @@
     <IlcOptimizationPreference>Size</IlcOptimizationPreference>
     <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
     <StaticallyLinked Condition="$(RuntimeIdentifier.StartsWith('win'))">true</StaticallyLinked>
-    <IlcVersion>7.0.0-rc.2.22472.3</IlcVersion>
+    <IlcVersion>7.0.10</IlcVersion>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(NativeBuild)'=='true'">
