@@ -341,7 +341,7 @@ ASALocalRun/
 healthchecksdb
 
 # Cake
-src/tools/*
+tools/*
 src/msbuild.ProjectImports.zip
 
 # nuget

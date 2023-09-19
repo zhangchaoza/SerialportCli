@@ -3,7 +3,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>10</LangVersion>
     <PackageOutputPath>./nupkg</PackageOutputPath>
-    <Copyright>Copyright © 2021 zhangchao</Copyright>
+    <Copyright>Copyright © 2023 zhangchao</Copyright>
     <Authors>github.com/zhangchaoza</Authors>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

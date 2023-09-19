@@ -1,1 +1,0 @@
-dotnet publish -c Release -r win-x64 --sc -v n -p:NativeBuild=true
