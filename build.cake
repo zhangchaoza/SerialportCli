@@ -31,7 +31,7 @@ GitVersion gitVersion = GitVersion(new GitVersionSettings { OutputType = GitVers
 
 var branchName = gitVersion.BranchName;
 var isDevelopBranch = StringComparer.OrdinalIgnoreCase.Equals("develop", branchName);
-var isReleaseBranch = StringComparer.OrdinalIgnoreCase.Equals("master", branchName);
+var isReleaseBranch = StringComparer.OrdinalIgnoreCase.Equals("main", branchName);
 var isTagged = AppVeyor.Environment.Repository.Tag.IsTag;
 var shortSha = gitVersion.Sha.Substring(0, 7);
 var publishVersion = $"{gitVersion.FullSemVer}.{shortSha}";
