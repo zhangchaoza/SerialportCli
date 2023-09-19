@@ -1,14 +1,13 @@
 namespace SerialportCli
 {
+    using CoreLib.IO.Ports;
+    using Pastel;
     using System;
     using System.CommandLine;
     using System.CommandLine.Invocation;
-    using System.Drawing;
-    using System.IO.Ports;
-    using Pastel;
-    using System.Linq;
     using System.CommandLine.NamingConventionBinder;
-    using SerialportCli.IO.Ports;
+    using System.Drawing;
+    using System.Linq;
 
     internal static class ListCommand
     {

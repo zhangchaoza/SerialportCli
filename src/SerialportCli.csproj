@@ -18,6 +18,7 @@
     <PackageReference Include="System.IO.Pipelines" Version="7.0.0" />
     <PackageReference Include="System.IO.Ports" Version="7.0.0" />
     <PackageReference Include="AsyncEventHandlers" Version="3.0.1" />
+    <PackageReference Include="ZCStudio.CoreLib.IO.Ports" Version="0.2.4" />
   </ItemGroup>
 
   <Import Project="Native.Build.props" />

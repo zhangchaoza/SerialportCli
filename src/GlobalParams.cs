@@ -13,7 +13,6 @@ namespace SerialportCli
         Detailed,
 
         Diagnostic
-
     }
 
     internal class GlobalParams
@@ -48,6 +47,5 @@ namespace SerialportCli
         public int DataBits { get; } = DEFAULT_DATABITS;
 
         public StopBits StopBits { get; } = DEFAULT_STOPBITS;
-
     }
 }

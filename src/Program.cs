@@ -6,9 +6,9 @@
     using System.CommandLine.Parsing;
     using System.Linq;
 
-    class Program
+    internal class Program
     {
-        static int Main(string[] args)
+        private static int Main(string[] args)
         {
             Console.InputEncoding = new System.Text.UTF8Encoding();
 
@@ -64,7 +64,7 @@
             return exitCode;
         }
 
-        static void ProcessBeforeInvoke(ParseResult parseResult, Option<bool> option)
+        private static void ProcessBeforeInvoke(ParseResult parseResult, Option<bool> option)
         {
             #region colorizer
 
@@ -74,9 +74,7 @@
                 Pastel.ConsoleExtensions.Disable();
             }
 
-            #endregion
+            #endregion colorizer
         }
-
     }
 }
-

@@ -1,19 +1,20 @@
 namespace SerialportCli
 {
+    using CoreLib.IO;
+    using CoreLib.IO.Ports;
+    using CoreLib.Sync;
+    using Pastel;
     using System;
+    using System.Buffers;
+    using System.Collections.Concurrent;
     using System.CommandLine;
     using System.CommandLine.Invocation;
+    using System.CommandLine.NamingConventionBinder;
     using System.Drawing;
     using System.IO.Ports;
-    using Pastel;
-    using System.Buffers;
+    using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
-    using System.Collections.Concurrent;
-    using System.Linq;
-    using System.CommandLine.NamingConventionBinder;
-    using SerialportCli.IO.Ports;
-    using SerialportCli.IO;
 
     internal static class EchoCommand
     {
@@ -22,7 +23,7 @@ namespace SerialportCli
         private static EchoParams? echoParams;
         private static long totalRecv;
         private static long totalSend;
-        private static BlockingCollection<ReadOnlyMemory<byte>> recvQueue = new BlockingCollection<ReadOnlyMemory<byte>>();
+        private static BlockingCollection<Arc<MemoryBuffer>> recvQueue = new();
 
         public static Command Build()
         {
@@ -59,7 +60,7 @@ namespace SerialportCli
             Console.WriteLine(SerialPortUtils.GetPortInfo(serialParams));
             var port = SerialPortUtils.CreatePort(serialParams);
             port.Open();
-            port.ProcessReceivedHandler = ProcessData;
+            port.DataReceived += ProcessData;
 
             var processSendTask = Task.Run(async () => await ProcessSend(port, context.GetCancellationToken()));
             var outputTask = Task.Run(() => OutputLoop(context.GetCancellationToken()));
@@ -73,7 +74,11 @@ namespace SerialportCli
 
             if (echoParams.InitBytes.HasValue)
             {
-                recvQueue.TryAdd(new Bogus.Randomizer().Bytes(echoParams.InitBytes.Value).AsMemory());
+                var buf = new Bogus.Randomizer().Bytes(echoParams.InitBytes.Value);
+                var mem = MemoryBuffer.Create(buf.Length);
+                buf.CopyTo(mem.Span);
+                var arc = Arc<MemoryBuffer>.CreateNew(mem);
+                recvQueue.TryAdd(arc);
             }
 
             await Task.WhenAll(waiter.Task, processSendTask, outputTask);
@@ -82,15 +87,12 @@ namespace SerialportCli
             return 0;
         }
 
-
-        private static Task<ReadOnlySequence<byte>> ProcessData(ReadOnlySequence<byte> buffer, CancellationToken token)
+        private static Task ProcessData(AsyncSerialDataReceivedEventHandlerArgs data, CancellationToken cancellationToken)
         {
-            Interlocked.Add(ref totalRecv, buffer.Length);
-            foreach (var m in buffer)
-            {
-                recvQueue.TryAdd(m);
-            }
-            return Task.FromResult(buffer.Slice(buffer.End));
+            var buffer_arc = data.Buffer.Clone();
+            Interlocked.Add(ref totalRecv, buffer_arc.Value.Length);
+            recvQueue.TryAdd(buffer_arc);
+            return Task.CompletedTask;
         }
 
         private static async Task ProcessSend(SerialPortWrapper port, CancellationToken token)
@@ -99,14 +101,15 @@ namespace SerialportCli
             {
                 foreach (var data in recvQueue.GetConsumingEnumerable(token))
                 {
-                    await port.WriteAsync(data);
-                    Interlocked.Add(ref totalSend, data.Length);
+                    using var _ = data;
+                    await port.WriteAsync(data.Value.Memory);
+                    Interlocked.Add(ref totalSend, data.Value.Length);
                 }
             }
             catch (System.OperationCanceledException) { }
         }
 
-        private async static void OutputLoop(CancellationToken token)
+        private static async void OutputLoop(CancellationToken token)
         {
             try
             {
@@ -139,10 +142,7 @@ namespace SerialportCli
 
         internal class EchoParams
         {
-
             public int? InitBytes { get; set; }
-
         }
-
     }
 }

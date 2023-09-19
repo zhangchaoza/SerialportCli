@@ -1,27 +1,24 @@
 namespace SerialportCli
 {
+    using CoreLib.IO;
+    using CoreLib.IO.Ports;
+    using CoreLib.Sync;
+    using CoreLib.Utils;
+    using Pastel;
+    using SerialportCli.Extensions;
+    using SerialportCli.Natives;
     using System;
     using System.CommandLine;
     using System.CommandLine.Invocation;
+    using System.CommandLine.NamingConventionBinder;
     using System.Drawing;
     using System.IO.Ports;
-    using Pastel;
-    using System.Buffers;
-    using System.Threading;
     using System.Linq;
     using System.Text;
-    using System.Runtime.InteropServices;
-    using System.IO;
-    using SerialportCli.Extensions;
-    using SerialportCli.Natives;
-    using System.CommandLine.NamingConventionBinder;
-    using SerialportCli.IO.Ports;
-    using SerialportCli.IO;
-    using SerialportCli.Utils;
+    using System.Threading;
 
     internal static class ReplCommand
     {
-
         private static long totalRecv;
         private static long totalSend;
         private static SerialParams? serialParams;
@@ -59,7 +56,7 @@ namespace SerialportCli
             Console.WriteLine(SerialPortUtils.GetPortInfo(serialParams));
             var port = SerialPortUtils.CreatePort(serialParams);
             port.Open();
-            port.ProcessReceivedHandler = ProcessData;
+            port.DataReceived += ProcessData;
 
             context.GetCancellationToken().Register(() =>
             {
@@ -93,23 +90,25 @@ namespace SerialportCli
             return 0;
         }
 
-        private static Task<ReadOnlySequence<byte>> ProcessData(ReadOnlySequence<byte> buffer, CancellationToken token)
+        private static Task ProcessData(AsyncSerialDataReceivedEventHandlerArgs data, CancellationToken cancellationToken)
         {
-            Interlocked.Add(ref totalRecv, buffer.Length);
-            OutputRecv(buffer);
-            return Task.FromResult(buffer.Slice(buffer.End));
+            var buffer_arc = data.Buffer.Clone();
+            Interlocked.Add(ref totalRecv, buffer_arc.Value.Length);
+            OutputRecv(buffer_arc);
+            return Task.CompletedTask;
         }
 
-        private static void OutputRecv(ReadOnlySequence<byte> buffer)
+        private static void OutputRecv(Arc<MemoryBuffer> buffer)
         {
+            using var _ = buffer;
             if (replParams!.String)
             {
-                var s = System.Text.Encoding.UTF8.GetString(buffer);
+                var s = System.Text.Encoding.UTF8.GetString(buffer.Value.Span);
                 Console.Write(s);
             }
             else
             {
-                var recv = buffer.ToSimpleHexString();
+                var recv = buffer.Value.Memory.ToSimpleHexString();
                 Console.WriteLine($"{"Total Recv:".Pastel(Color.Gray)}{totalRecv.ToString().Pastel(Color.Gray)}> {recv.Pastel(Color.LightBlue)}");
             }
         }
@@ -125,10 +124,7 @@ namespace SerialportCli
 
         internal class ReplParams
         {
-
             public bool @String { get; set; }
-
         }
-
     }
 }

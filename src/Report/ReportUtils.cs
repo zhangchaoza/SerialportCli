@@ -1,5 +1,3 @@
-using System;
-
 namespace SerialportCli.Report;
 
 public static class ReportUtils

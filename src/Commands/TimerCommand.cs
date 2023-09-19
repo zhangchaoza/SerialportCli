@@ -1,19 +1,14 @@
-using System;
-using System.Buffers;
+using Bogus;
+using CoreLib.IO;
+using CoreLib.IO.Ports;
+using Pastel;
+using SerialportCli.Report;
 using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.CommandLine.NamingConventionBinder;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO.Ports;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Bogus;
-using Pastel;
-using SerialportCli.Report;
-using System.CommandLine.NamingConventionBinder;
-using SerialportCli.IO.Ports;
-using SerialportCli.IO;
 
 namespace SerialportCli;
 
@@ -66,7 +61,7 @@ public class TimerCommand
         var sp = new Stopwatch();
         sp.Start();
         port.Open();
-        port.ProcessReceivedHandler = ProcessData;
+        port.DataReceived += ProcessData;
 
         var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(fakeParams.Timeout));
         var token = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, context.GetCancellationToken()).Token;
@@ -92,10 +87,10 @@ public class TimerCommand
         return 0;
     }
 
-    private static Task<ReadOnlySequence<byte>> ProcessData(ReadOnlySequence<byte> buffer, CancellationToken token)
+    private static Task ProcessData(AsyncSerialDataReceivedEventHandlerArgs data, CancellationToken cancellationToken)
     {
-        Interlocked.Add(ref totalRecv, buffer.Length);
-        return Task.FromResult(buffer.Slice(buffer.End));
+        Interlocked.Add(ref totalRecv, data.Buffer.Value.Length);
+        return Task.CompletedTask;
     }
 
     private static async Task ProcessSend(SerialPortWrapper port, CancellationToken token)
@@ -105,7 +100,7 @@ public class TimerCommand
             var _interval = TimeSpan.FromMilliseconds(fakeParams!.Interval);
             while (!token.IsCancellationRequested)
             {
-                var buffer = MemoryBuffer.Create(fakeParams.FakeLength);
+                using var buffer = MemoryBuffer.Create(fakeParams.FakeLength);
                 for (int i = 0; i < buffer.Length; i++)
                 {
                     buffer.Span[i] = rand.Byte();
@@ -118,7 +113,7 @@ public class TimerCommand
         catch (System.OperationCanceledException) { }
     }
 
-    private async static void OutputLoop(CancellationToken token)
+    private static async void OutputLoop(CancellationToken token)
     {
         try
         {

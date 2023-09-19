@@ -1,7 +1,8 @@
+using CoreLib.IO.Ports;
+using CoreLib.Logging;
+using Pastel;
 using System.Drawing;
 using System.IO.Ports;
-using Pastel;
-using SerialportCli.IO.Ports;
 
 namespace SerialportCli;
 
@@ -35,9 +36,8 @@ internal static class SerialPortUtils
         return new SerialPortWrapper(
             new SerialConnectInfo(@params.Port, @params.BaudRate, @params.Parity, @params.DataBits, @params.StopBits),
             readTimeout: 1000,
-            writeTimeout: 1000
+            writeTimeout: 1000,
+            new EmptyLogger()
         );
     }
-
 }
-

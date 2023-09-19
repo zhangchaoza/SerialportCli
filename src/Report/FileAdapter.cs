@@ -1,7 +1,3 @@
-using System;
-using System.IO;
-using System.Threading;
-
 namespace SerialportCli.Report;
 
 public class FileAdapter : IReportAdapter
