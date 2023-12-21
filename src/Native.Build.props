@@ -1,14 +1,17 @@
 <Project>
   <PropertyGroup Condition="'$(NativeBuild)'=='true'">
+    <PublishAot>true</PublishAot>
     <IlcOptimizationPreference>Size</IlcOptimizationPreference>
     <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
     <StaticallyLinked Condition="$(RuntimeIdentifier.StartsWith('win'))">true</StaticallyLinked>
-    <IlcVersion>7.0.10</IlcVersion>
+    <StripSymbols>true</StripSymbols>
+    <TrimmedEnable>true</TrimmedEnable>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(NativeBuild)'=='true'">
-    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="$(IlcVersion)" />
     <!-- <RdXmlFile Include="rd.xml" /> -->
     <IlcArg Include="--stacktracedata" />
+    <!-- <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="8.0.0" /> -->
   </ItemGroup>
+
 </Project>

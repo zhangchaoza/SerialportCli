@@ -1,5 +1,3 @@
-using Bogus;
-using Bogus.DataSets;
 using CoreLib.IO;
 using CoreLib.IO.Ports;
 using Pastel;
@@ -15,7 +13,6 @@ namespace SerialportCli;
 
 public class TimerCommand
 {
-    private static Randomizer rand = new Randomizer();
     private static GlobalParams? globalParams;
     private static SerialParams? serialParams;
     private static FakeParams? fakeParams;

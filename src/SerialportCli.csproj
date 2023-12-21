@@ -2,22 +2,21 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TrimMode>Link</TrimMode>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Bogus" Version="34.0.2" />
     <PackageReference Include="GitVersion.MsBuild" Version="5.12.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Pastel" Version="4.1.0" />
+    <PackageReference Include="Pastel" Version="4.2.0" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
     <PackageReference Include="System.CommandLine.NamingConventionBinder" Version="2.0.0-beta4.22272.1" />
     <PackageReference Include="ZCStudio.CoreLib.IO.Ports" Version="0.2.6" />
   </ItemGroup>
 
+  <Import Project="td.props" />
   <Import Project="Native.Build.props" />
 
 </Project>

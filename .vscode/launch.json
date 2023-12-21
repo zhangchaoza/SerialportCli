@@ -10,7 +10,7 @@
       "request": "launch",
       "preLaunchTask": "build",
       // If you have changed target frameworks, make sure to update the program path.
-      "program": "${workspaceFolder}/src/bin/Debug/net6.0/SerialportCli.dll",
+      "program": "${workspaceFolder}/src/bin/Debug/net8.0/SerialportCli.dll",
       "args": [
         "list"
       ],
@@ -25,7 +25,7 @@
       "request": "launch",
       "preLaunchTask": "build",
       // If you have changed target frameworks, make sure to update the program path.
-      "program": "${workspaceFolder}/src/bin/Debug/net6.0/SerialportCli.dll",
+      "program": "${workspaceFolder}/src/bin/Debug/net8.0/SerialportCli.dll",
       "args": [
         "echo",
         "com7"
@@ -41,7 +41,7 @@
       "request": "launch",
       "preLaunchTask": "build",
       // If you have changed target frameworks, make sure to update the program path.
-      "program": "${workspaceFolder}/src/bin/Debug/net6.0/SerialportCli.dll",
+      "program": "${workspaceFolder}/src/bin/Debug/net8.0/SerialportCli.dll",
       "args": [
         "repl",
         "com7"
@@ -57,7 +57,7 @@
       "request": "launch",
       "preLaunchTask": "build",
       // If you have changed target frameworks, make sure to update the program path.
-      "program": "${workspaceFolder}/src/bin/Debug/net6.0/SerialportCli.dll",
+      "program": "${workspaceFolder}/src/bin/Debug/net8.0/SerialportCli.dll",
       "args": [
         "timer",
         "com6"

@@ -2,8 +2,7 @@
 // TOOLS / ADDINS
 ///////////////////////////////////////////////////////////////////////////////
 
-#tool dotnet:?package=GitVersion.Tool&version=5.11.1
-#addin nuget:?package=Spectre.Console&version=0.45.0
+#tool dotnet:?package=GitVersion.Tool&version=5.12.0
 
 ///////////////////////////////////////////////////////////////////////////////
 // ARGUMENTS
@@ -48,9 +47,7 @@ var solution_test = "./src/SerialportCli.sln";
 
 Setup(ctx =>
 {
-    // Figlet Logo
-    AnsiConsole.Write(new FigletText(repoName).LeftAligned().Color(Color.Green));
-    AnsiConsole.Write(new FigletText("(*^-^*)").LeftAligned().Color(Color.Green));
+    AnsiConsole.Write(new FigletText($"{repoName} (*^-^*)").LeftJustified().Color(Color.Green));
 
     Information("Informational   Version: {0}", gitVersion.InformationalVersion);
     Information("SemVer          Version: {0}", gitVersion.SemVer);
