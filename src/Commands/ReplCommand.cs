@@ -58,7 +58,7 @@ namespace SerialportCli
             port.Open();
             port.DataReceived += ProcessData;
 
-            context.GetCancellationToken().Register(() =>
+            using var reg = context.GetCancellationToken().Register(() =>
             {
                 port.Close();
                 var handle = kernel32.GetStdHandle(kernel32.STD_INPUT_HANDLE);
@@ -92,7 +92,7 @@ namespace SerialportCli
 
         private static Task ProcessData(AsyncSerialDataReceivedEventHandlerArgs data, CancellationToken cancellationToken)
         {
-            var buffer_arc = data.Buffer.Clone();
+            using var buffer_arc = data.Buffer.Clone();
             Interlocked.Add(ref totalRecv, buffer_arc.Value.Length);
             OutputRecv(buffer_arc);
             return Task.CompletedTask;
@@ -100,7 +100,6 @@ namespace SerialportCli
 
         private static void OutputRecv(Arc<MemoryBuffer> buffer)
         {
-            using var _ = buffer;
             if (replParams!.String)
             {
                 var s = System.Text.Encoding.UTF8.GetString(buffer.Value.Span);

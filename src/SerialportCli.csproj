@@ -15,7 +15,7 @@
     <PackageReference Include="Pastel" Version="4.1.0" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
     <PackageReference Include="System.CommandLine.NamingConventionBinder" Version="2.0.0-beta4.22272.1" />
-    <PackageReference Include="ZCStudio.CoreLib.IO.Ports" Version="0.2.4" />
+    <PackageReference Include="ZCStudio.CoreLib.IO.Ports" Version="0.2.6" />
   </ItemGroup>
 
   <Import Project="Native.Build.props" />

@@ -66,7 +66,7 @@ namespace SerialportCli
             var outputTask = Task.Run(() => OutputLoop(context.GetCancellationToken()));
 
             var waiter = new TaskCompletionSource<int>();
-            context.GetCancellationToken().Register(() =>
+            using var reg = context.GetCancellationToken().Register(() =>
             {
                 waiter.TrySetResult(0);
                 port.Close();
@@ -74,11 +74,9 @@ namespace SerialportCli
 
             if (echoParams.InitBytes.HasValue)
             {
-                var buf = new Bogus.Randomizer().Bytes(echoParams.InitBytes.Value);
-                var mem = MemoryBuffer.Create(buf.Length);
-                buf.CopyTo(mem.Span);
-                var arc = Arc<MemoryBuffer>.CreateNew(mem);
-                recvQueue.TryAdd(arc);
+                using var arc = Arc<MemoryBuffer>.CreateNew(MemoryBuffer.Create(echoParams.InitBytes.Value));
+                Random.Shared.NextBytes(arc.Value.Span);
+                recvQueue.TryAdd(arc.Clone());
             }
 
             await Task.WhenAll(waiter.Task, processSendTask, outputTask);

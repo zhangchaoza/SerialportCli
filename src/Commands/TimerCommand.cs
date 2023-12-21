@@ -1,4 +1,5 @@
 using Bogus;
+using Bogus.DataSets;
 using CoreLib.IO;
 using CoreLib.IO.Ports;
 using Pastel;
@@ -63,14 +64,16 @@ public class TimerCommand
         port.Open();
         port.DataReceived += ProcessData;
 
-        var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(fakeParams.Timeout));
-        var token = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, context.GetCancellationToken()).Token;
+        using var ctsTimeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(fakeParams.Timeout));
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ctsTimeout.Token, context.GetCancellationToken());
 
-        var processSendTask = Task.Run(async () => await ProcessSend(port, token));
-        var outputTask = Task.Run(() => OutputLoop(token));
+        var processSendTask = Task.Run(async () => await ProcessSend(port, cts.Token));
+        //var processSendTask = Task.Delay(-1);
+        var outputTask = Task.Run(() => OutputLoop(cts.Token));
+        //var outputTask = Task.Delay(-1);
 
         var waiter = new TaskCompletionSource<int>();
-        token.Register(() =>
+        using var reg = cts.Token.Register(() =>
         {
             waiter.TrySetResult(0);
             port.Close();
@@ -101,10 +104,7 @@ public class TimerCommand
             while (!token.IsCancellationRequested)
             {
                 using var buffer = MemoryBuffer.Create(fakeParams.FakeLength);
-                for (int i = 0; i < buffer.Length; i++)
-                {
-                    buffer.Span[i] = rand.Byte();
-                }
+                Random.Shared.NextBytes(buffer.Span);
                 await port.WriteAsync(buffer.Memory);
                 Interlocked.Add(ref totalSend, buffer.Length);
                 await Task.Delay(_interval, token);

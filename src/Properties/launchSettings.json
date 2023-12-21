@@ -1,0 +1,15 @@
+{
+  "profiles": {
+    "SerialportCli": {
+      "commandName": "Project"
+    },
+    "timer": {
+      "commandName": "Project",
+      "commandLineArgs": "timer --fake-length 128 --timeout -1 --interval 1 --report-path file://com101.csv com101"
+    },
+    "echo": {
+      "commandName": "Project",
+      "commandLineArgs": "echo --init-bytes 128 com101"
+    }
+  }
+}
