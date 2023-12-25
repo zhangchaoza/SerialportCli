@@ -1,4 +1,6 @@
-using CoreLib.IO;
+namespace SerialportCli;
+
+using CoreLib.IO.Buffers;
 using CoreLib.IO.Ports;
 using Pastel;
 using SerialportCli.Report;
@@ -8,8 +10,6 @@ using System.CommandLine.NamingConventionBinder;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO.Ports;
-
-namespace SerialportCli;
 
 public class TimerCommand
 {
@@ -100,7 +100,7 @@ public class TimerCommand
             var _interval = TimeSpan.FromMilliseconds(fakeParams!.Interval);
             while (!token.IsCancellationRequested)
             {
-                using var buffer = MemoryBuffer.Create(fakeParams.FakeLength);
+                using IMemoryBuffer buffer = MemoryBuffer.Create(fakeParams.FakeLength);
                 Random.Shared.NextBytes(buffer.Span);
                 await port.WriteAsync(buffer.Memory);
                 Interlocked.Add(ref totalSend, buffer.Length);
