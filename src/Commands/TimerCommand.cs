@@ -44,6 +44,7 @@ public class TimerCommand
         command.AddOption(new Option<int?>(new string[] { "--fake-length" }, description: "length of faked bytes.", getDefaultValue: () => FakeParams.DEFAULT_FAKE_LENGTH));
         command.AddOption(new Option<uint>(new string[] { "--interval" }, description: "write data interval.", getDefaultValue: () => FakeParams.DEFAULT_INTERVAL));
         command.AddOption(new Option<long>(new string[] { "--timeout" }, description: "data fake timeout (ms).-1 means infinite.", getDefaultValue: () => FakeParams.DEFAULT_TIMEOUT));
+        command.AddOption(new Option<long>(new string[] { "--output-timeout" }, description: "output timeout (ms) after send task has stopped.-1 means infinite.", getDefaultValue: () => FakeParams.DEFAULT_OUTPUT_TIMEOUT));
         command.AddOption(new Option<string>(new string[] { "--report-path" }, description: "path of report.(like file://sp_report.csv or file:///C:/sp_report.csv)", getDefaultValue: () => FakeParams.DEFAULT_REPORT_PATH));
         command.Handler = CommandHandler.Create<InvocationContext, GlobalParams, SerialParams, TimerCommand, FakeParams>(Run);
         return command;
@@ -63,20 +64,35 @@ public class TimerCommand
 
         using var ctsTimeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(fakeParams.Timeout));
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ctsTimeout.Token, context.GetCancellationToken());
+        using var ctsOut = new CancellationTokenSource();
 
         var processSendTask = Task.Run(async () => await ProcessSend(port, cts.Token));
-        //var processSendTask = Task.Delay(-1);
-        var outputTask = Task.Run(() => OutputLoop(cts.Token));
-        //var outputTask = Task.Delay(-1);
+        var outputTask = Task.Run(() => OutputLoop(ctsOut.Token));
 
-        var waiter = new TaskCompletionSource<int>();
-        using var reg = cts.Token.Register(() =>
         {
-            waiter.TrySetResult(0);
-            port.Close();
-        });
+            var waiter = new TaskCompletionSource<int>();
+            using var reg = cts.Token.Register(() => waiter.TrySetResult(0));
+            await Task.WhenAll(waiter.Task, processSendTask);
+        }
 
-        await Task.WhenAll(waiter.Task, processSendTask, outputTask);
+        Console.WriteLine();
+        if (fakeParams.OutputTimeout >= 0)
+        {
+            Console.WriteLine("Send task had stopped, wait Output task finished.");
+            var waiter = new TaskCompletionSource();
+            using var reg = ctsOut.Token.Register(() => waiter.TrySetResult());
+            ctsOut.CancelAfter(TimeSpan.FromMilliseconds(fakeParams.OutputTimeout));
+            await waiter.Task;
+        }
+        else
+        {
+            Console.WriteLine("Send task had stopped, press Enter to stop Output task if you want");
+            Console.ReadLine();
+        }
+        port.Close();
+        ctsOut.Cancel();
+        await outputTask;
+
         OutPut();
         Console.WriteLine();
         sp.Stop();
@@ -145,12 +161,15 @@ public class TimerCommand
     {
         public const uint DEFAULT_INTERVAL = 1000;
         public const long DEFAULT_TIMEOUT = 60000;
+        public const long DEFAULT_OUTPUT_TIMEOUT = 6000;
         public const string DEFAULT_REPORT_PATH = "file://sp_report.csv";
         public const int DEFAULT_FAKE_LENGTH = 8;
 
         public uint Interval { get; set; } = DEFAULT_INTERVAL;
 
         public long Timeout { get; set; } = DEFAULT_TIMEOUT;
+
+        public long OutputTimeout { get; set; } = DEFAULT_OUTPUT_TIMEOUT;
 
         public string ReportPath { get; set; } = DEFAULT_REPORT_PATH;
 

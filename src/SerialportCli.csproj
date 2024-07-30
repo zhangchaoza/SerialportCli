@@ -13,7 +13,7 @@
     <PackageReference Include="Pastel" Version="4.2.0" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
     <PackageReference Include="System.CommandLine.NamingConventionBinder" Version="2.0.0-beta4.22272.1" />
-    <PackageReference Include="ZCStudio.CoreLib.IO.Ports" Version="0.2.7" />
+    <PackageReference Include="ZCStudio.CoreLib.IO.Ports" Version="0.2.8-unstable0015" />
   </ItemGroup>
 
   <!-- <ItemGroup>

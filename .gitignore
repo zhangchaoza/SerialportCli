@@ -358,3 +358,5 @@ src/msbuild.ProjectImports.zip
 
 # ionide
 .ionide
+
+src/*.csv
