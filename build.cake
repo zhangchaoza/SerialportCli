@@ -289,10 +289,37 @@ Task("Pack")
         {
             MSBuildSettings = msBuildSettings,
             Configuration = buildConfiguration,
-            OutputDirectory = $@"Publish\tool\{buildConfiguration}\",
+            OutputDirectory = $@"Publish/tool/",
             Verbosity = verbosity,
         };
         DotNetPack(solution, setting);
+    });
+
+Task("Push")
+    .Description("Push pack to nuget.org")
+    .IsDependentOn("Clean")
+    .IsDependentOn("Pack")
+    .Does(() =>
+    {
+        var apiKey = AnsiConsole.Prompt(new TextPrompt<string>("Input api-key of nuget.org :").PromptStyle("red").Secret('*'));
+        var nugetFiles = GetFiles("./Publish/tool/*.nupkg");
+        foreach (var nugetFile in nugetFiles)
+        {
+            Information("Push file to nuget.org, uploading {0}", nugetFile);
+            Command(
+                new[] { "dotnet", "dotnet.exe" },
+                new ProcessArgumentBuilder()
+                    .Append("nuget")
+                    .Append("push")
+                    .Append($"{nugetFile}")
+                    .Append("--skip-duplicate")
+                    .Append("--api-key")
+                    .Append(apiKey)
+                    .Append("-s")
+                    .AppendQuoted("https://api.nuget.org/v3/index.json")
+            );
+        }
+
     });
 
 ///////////////////////////////////////////////////////////////////////////////
