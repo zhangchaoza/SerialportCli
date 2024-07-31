@@ -3,6 +3,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #tool dotnet:?package=GitVersion.Tool&version=5.12.0
+#addin nuget:?package=Cake.FileHelpers&version=7.0.0
 
 ///////////////////////////////////////////////////////////////////////////////
 // ARGUMENTS
@@ -56,6 +57,7 @@ Setup(ctx =>
     Information("AssemblySemVer  Version: {0}", gitVersion.AssemblySemVer);
     Information("MajorMinorPatch Version: {0}", gitVersion.MajorMinorPatch);
     Information("Debug           Version: {0}", $"{gitVersion.FullSemVer}.{shortSha}");
+    Information("Publish         Version: {0}", publishVersion);
     Information("IsLocalBuild           : {0}", isLocal);
     Information("Target                 : {0}", string.Join(",", targets));
     Information("Branch                 : {0}", branchName);
@@ -158,7 +160,7 @@ Task("Debug")
         }
     });
 
-Task("Publish_win_x64")
+Task("PublishWindows")
     .Description($"publish release configuration. [{solution}] .")
     .Does(() =>
     {
@@ -166,8 +168,8 @@ Task("Publish_win_x64")
         var msBuildSettings = new DotNetMSBuildSettings
         {
             ArgumentCustomization = args => args
-                .Append("-nodeReuse:false")
-            ,
+                    .Append("-nodeReuse:false")
+                ,
             BinaryLogger = new MSBuildBinaryLoggerSettings() { Enabled = isLocal }
         };
 
@@ -184,7 +186,7 @@ Task("Publish_win_x64")
             .WithProperty("NativeBuild", "false")
             .WithProperty("TieredPGO", "true");
 
-        foreach (var r in new string[] { "win-x64", "win-x86" })
+        foreach (var r in new string[]{"win-x64", "win-x86","win-arm64" })
         {
             var setting = new DotNetPublishSettings
             {
@@ -204,6 +206,27 @@ Task("Publish_win_x64")
 
             // 为了交叉编译，需要清理以下obj
             DeleteDirectories(GetDirectories("./src/obj"), new DeleteDirectorySettings { Recursive = true, Force = true });
+
+            // archive
+            var archivePath = $"Publish/SerialportCli-v{publishVersion}-{r}.tar.gz";
+            try { DeleteFile(archivePath); } catch { }
+            using var fs = System.IO.File.OpenWrite(archivePath);
+            using var gzips = new System.IO.Compression.GZipStream(fs, System.IO.Compression.CompressionLevel.SmallestSize, true);
+            System.Formats.Tar.TarFile.CreateFromDirectory($"Publish/{r}/{buildConfiguration}", gzips, false);
+
+            // github action output
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_REF")))
+            {
+                FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"ASSET_{r}={archivePath}\n");
+            }
+        }
+
+        // github action output
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_REF")))
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(Environment.GetEnvironmentVariable("GITHUB_REF"), @"(?<=(/tags/))([\s\S]+)");
+            var tag = m.Value;
+            FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"TAG={tag}\n");
         }
     });
 
@@ -254,6 +277,7 @@ Task("Publish_win_x64_Aot")
 
 Task("Pack")
     .Description($"pack as tool. [{solution}] .")
+    .IsDependentOn("Clean")
     .Does(() =>
     {
         var buildConfiguration = Argument("configuration", "Release");
@@ -293,15 +317,28 @@ Task("Pack")
             Verbosity = verbosity,
         };
         DotNetPack(solution, setting);
+
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_REF")))
+        {
+            var archivePath = GetFiles($"Publish/tool/SerialportCli.{gitVersion.FullSemVer}.nupkg").First();
+            var m = System.Text.RegularExpressions.Regex.Match(Environment.GetEnvironmentVariable("GITHUB_REF"), @"(?<=(/tags/))([\s\S]+)");
+            var tag = m.Value;
+            FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"TAG={tag}\n");
+            FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"ASSET={archivePath}\n");
+        }
     });
 
 Task("Push")
     .Description("Push pack to nuget.org")
-    .IsDependentOn("Clean")
     .IsDependentOn("Pack")
     .Does(() =>
     {
-        var apiKey = AnsiConsole.Prompt(new TextPrompt<string>("Input api-key of nuget.org :").PromptStyle("red").Secret('*'));
+        var apiKey =  Environment.GetEnvironmentVariable("NUGET_TOKEN") switch
+        {
+            null => AnsiConsole.Prompt(new TextPrompt<string>("Input api-key of nuget.org :").PromptStyle("red").Secret('*')),
+            string s => s
+        };
+
         var nugetFiles = GetFiles("./Publish/tool/*.nupkg");
         foreach (var nugetFile in nugetFiles)
         {
@@ -331,7 +368,7 @@ Task("Default")
 
 Task("Publish")
     .IsDependentOn("Clean")
-    .IsDependentOn("Publish_win_x64")
+    .IsDependentOn("PublishWindows")
     .IsDependentOn("Publish_win_x64_Aot")
     .IsDependentOn("Pack");
 

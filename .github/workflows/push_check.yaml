@@ -1,0 +1,38 @@
+name: Push Check
+
+on:
+  push:
+    branches: ["main","develop"]
+  pull_request:
+    branches: ["main"]
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Run the Cake script Debug
+        uses: cake-build/cake-action@v2
+        with:
+          cake-version: 4.0.0
+          target: Debug
+      - name: Run the Cake script Release
+        uses: cake-build/cake-action@v2
+        with:
+          cake-version: 4.0.0
+          target: Publish
