@@ -33,6 +33,7 @@ jobs:
           NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
         with:
           cake-version: 4.0.0
+          verbosity: Diagnostic
           target: Push
       - name: Update release with nuget package
         env:
@@ -42,6 +43,7 @@ jobs:
         uses: cake-build/cake-action@v2
         with:
           cake-version: 4.0.0
+          verbosity: Diagnostic
           target: PublishWindows
       - name: Update release with Windows package
         env:
@@ -54,6 +56,7 @@ jobs:
         uses: cake-build/cake-action@v2
         with:
           cake-version: 4.0.0
+          verbosity: Diagnostic
           target: PublishWindowsAot
       - name: Update release with Windows aot package
         env:
@@ -78,6 +81,7 @@ jobs:
           NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
         with:
           cake-version: 4.0.0
+          verbosity: Diagnostic
           target: Push
       - name: Update release with nuget package
         env:
@@ -87,6 +91,7 @@ jobs:
         uses: cake-build/cake-action@v2
         with:
           cake-version: 4.0.0
+          verbosity: Diagnostic
           target: PublishLinux
       - name: Update release with Linux package
         env:
@@ -98,6 +103,7 @@ jobs:
         uses: cake-build/cake-action@v2
         with:
           cake-version: 4.0.0
+          verbosity: Diagnostic
           target: PublishLinuxAot
       - name: Update release with Linux aot package
         env:
