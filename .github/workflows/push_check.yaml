@@ -53,6 +53,11 @@ jobs:
         with:
           cake-version: 4.0.0
           target: PublishWindows
+      - name: Run the Cake script PublishWindowsAot
+        uses: cake-build/cake-action@v2
+        with:
+          cake-version: 4.0.0
+          target: PublishWindowsAot
   linux:
     runs-on: ubuntu-latest
     permissions:
@@ -70,3 +75,8 @@ jobs:
         with:
           cake-version: 4.0.0
           target: PublishLinux
+      - name: Run the Cake script PublishLinuxAot
+        uses: cake-build/cake-action@v2
+        with:
+          cake-version: 4.0.0
+          target: PublishLinuxAot

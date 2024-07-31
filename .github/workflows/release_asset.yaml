@@ -94,6 +94,11 @@ jobs:
         run: |
           gh release upload $TAG $ASSET_linux-x64
           gh release upload $TAG $ASSET_linux-arm64
+      - name: Run the Cake script PublishLinuxAot
+        uses: cake-build/cake-action@v2
+        with:
+          cake-version: 4.0.0
+          target: PublishLinuxAot
       - name: Update release with Linux aot package
         env:
           GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
