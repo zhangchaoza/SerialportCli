@@ -86,7 +86,7 @@ Task("Clean")
     .Does(() =>
     {
         var directoriesToDelete = GetDirectories("./publish")
-            .Concat(GetDirectories("./bin"))
+            // .Concat(GetDirectories("./bin"))
             // .Concat(GetDirectories("./*/bin"))
             // .Concat(GetDirectories("./*/obj"))
             .Concat(GetDirectories("./**/bin"))
