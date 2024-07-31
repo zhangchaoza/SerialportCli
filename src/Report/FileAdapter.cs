@@ -11,15 +11,17 @@ public class FileAdapter : IReportAdapter
 
     public void Append(string name, long totalRecv, long totalSend, long elapsed)
     {
-        string path = "";
+        string path = url.LocalPath.StartsWith(@"\\") switch
+        {
+            true => url.LocalPath.Substring(2),
+            false => url.LocalPath
+        };
 
-        if (url.LocalPath.StartsWith(@"\\"))
+        if (!File.Exists(path))
         {
-            path = url.LocalPath.Substring(2);
-        }
-        else
-        {
-            path = url.LocalPath;
+            File.WriteAllLines(path, ["""
+                                      "Name","RX(byte)","TX(byte)","Elapsed(ms)"
+                                      """]);
         }
 
         while (true)
@@ -31,7 +33,7 @@ public class FileAdapter : IReportAdapter
                 sw.WriteLine($"\"{name}\",\"{totalRecv}\",\"{totalSend}\",\"{elapsed}\"");
                 break;
             }
-            catch (System.IO.IOException)
+            catch (IOException)
             {
                 Thread.Sleep(1);
                 continue;
