@@ -31,8 +31,28 @@ jobs:
         with:
           cake-version: 4.0.0
           target: Debug
-      - name: Run the Cake script Publish
+      - name: Run the Cake script Test
         uses: cake-build/cake-action@v2
         with:
           cake-version: 4.0.0
-          target: Publish
+          target: Test
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Run the Cake script PublishWindows
+        uses: cake-build/cake-action@v2
+        with:
+          cake-version: 4.0.0
+          target: PublishWindows
+  linux:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Run the Cake script PublishLinux
+        uses: cake-build/cake-action@v2
+        with:
+          cake-version: 4.0.0
+          target: PublishLinux

@@ -34,7 +34,7 @@ jobs:
         with:
           cake-version: 4.0.0
           target: Push
-      - name: Update release with new asset
+      - name: Update release with nuget package
         env:
           GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
         run: gh release upload $TAG $ASSET
@@ -43,44 +43,59 @@ jobs:
         with:
           cake-version: 4.0.0
           target: PublishWindows
-      - name: Update release with new asset
+      - name: Update release with Windows package
         env:
           GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
         run: |
           gh release upload $TAG $ASSET_win-x64
           gh release upload $TAG $ASSET_win-x86
           gh release upload $TAG $ASSET_win-arm64
-  # linux:
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     contents: write
-  #     steps:
-  #       - uses: actions/checkout@v4
-  #         with:
-  #           fetch-depth: 0
-  #       - name: Setup .NET
-  #         uses: actions/setup-dotnet@v4
-  #         with:
-  #           dotnet-version: 8.0.x
-  #       - name: Run the Cake script Package
-  #         uses: cake-build/cake-action@v2
-  #         env:
-  #           NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
-  #         with:
-  #           cake-version: 4.0.0
-  #           target: Push
-  #       - name: Update release with new asset
-  #         env:
-  #           GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
-  #         run: gh release upload $TAG $ASSET
-  #       - name: Run the Cake script PublishLinux
-  #         uses: cake-build/cake-action@v2
-  #         with:
-  #           cake-version: 4.0.0
-  #           target: PublishLinux
-  #       - name: Update release with new asset
-  #         env:
-  #           GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
-  #         run: |
-  #           gh release upload $TAG $ASSET_linux-x64
-  #           gh release upload $TAG $ASSET_linux-arm64
+      - name: Run the Cake script PublishWindowsAot
+        uses: cake-build/cake-action@v2
+        with:
+          cake-version: 4.0.0
+          target: PublishWindowsAot
+      - name: Update release with Windows aot package
+        env:
+          GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
+        run: |
+          gh release upload $TAG $ASSET_win-x64_aot
+  linux:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Run the Cake script Package
+        uses: cake-build/cake-action@v2
+        env:
+          NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
+        with:
+          cake-version: 4.0.0
+          target: Push
+      - name: Update release with nuget package
+        env:
+          GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
+        run: gh release upload $TAG $ASSET
+      - name: Run the Cake script PublishLinux
+        uses: cake-build/cake-action@v2
+        with:
+          cake-version: 4.0.0
+          target: PublishLinux
+      - name: Update release with Linux package
+        env:
+          GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
+        run: |
+          gh release upload $TAG $ASSET_linux-x64
+          gh release upload $TAG $ASSET_linux-arm64
+      - name: Update release with Linux aot package
+        env:
+          GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
+        run: |
+          gh release upload $TAG $ASSET_linux-x64_aot

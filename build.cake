@@ -153,7 +153,7 @@ Task("Debug")
             {
                 MSBuildSettings = msBuildSettings,
                 Configuration = buildConfiguration,
-                OutputDirectory = $@"bin\{r}\{buildConfiguration}\",
+                OutputDirectory = $@"bin/{r}/{buildConfiguration}/",
                 Verbosity = verbosity,
             };
             DotNetBuild(solution_dev, buildSetting);
@@ -193,7 +193,7 @@ Task("PublishWindows")
                 MSBuildSettings = msBuildSettings,
                 Configuration = buildConfiguration,
                 Runtime = r,
-                OutputDirectory = $@"Publish\{r}\{buildConfiguration}\",
+                OutputDirectory = $@"Publish/{r}/{buildConfiguration}/",
                 PublishSingleFile = true,
                 SelfContained = true,
                 PublishReadyToRun = true,
@@ -204,7 +204,7 @@ Task("PublishWindows")
             };
             DotNetPublish(solution, setting);
 
-            // 为了交叉编译，需要清理以下obj
+            // clean obj for cross-compile
             DeleteDirectories(GetDirectories("./src/obj"), new DeleteDirectorySettings { Recursive = true, Force = true });
 
             // archive
@@ -230,7 +230,7 @@ Task("PublishWindows")
         }
     });
 
-Task("Publish_win_x64_Aot")
+Task("PublishWindowsAot")
     .Description($"publish aot release configuration. [{solution}] .")
     .Does(() =>
     {
@@ -265,13 +265,170 @@ Task("Publish_win_x64_Aot")
                 PublishTrimmed = true,
                 SelfContained = true,
                 PublishReadyToRun = true,
-                OutputDirectory = $@"Publish\{r}-aot\{buildConfiguration}\",
+                OutputDirectory = $@"Publish/{r}-aot/{buildConfiguration}/",
                 Verbosity = verbosity,
             };
             DotNetPublish(solution, setting);
 
-            // 为了交叉编译，需要清理以下obj
+            // clean obj for cross-compile
             DeleteDirectories(GetDirectories("./src/obj"), new DeleteDirectorySettings { Recursive = true, Force = true });
+
+            // archive
+            var archivePath = $"Publish/SerialportCli-v{publishVersion}-{r}-aot.tar.gz";
+            try { DeleteFile(archivePath); } catch { }
+            using var fs = System.IO.File.OpenWrite(archivePath);
+            using var gzips = new System.IO.Compression.GZipStream(fs, System.IO.Compression.CompressionLevel.SmallestSize, true);
+            System.Formats.Tar.TarFile.CreateFromDirectory($"Publish/{r}-aot/{buildConfiguration}", gzips, false);
+
+            // github action output
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_REF")))
+            {
+                FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"ASSET_{r}_aot={archivePath}\n");
+            }
+        }
+
+        // github action output
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_REF")))
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(Environment.GetEnvironmentVariable("GITHUB_REF"), @"(?<=(/tags/))([\s\S]+)");
+            var tag = m.Value;
+            FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"TAG={tag}\n");
+        }
+    });
+
+Task("PublishLinux")
+    .Description($"publish release configuration. [{solution}] .")
+    .Does(() =>
+    {
+        var buildConfiguration = Argument("configuration", "Release");
+        var msBuildSettings = new DotNetMSBuildSettings
+        {
+            ArgumentCustomization = args => args
+                    .Append("-nodeReuse:false")
+                ,
+            BinaryLogger = new MSBuildBinaryLoggerSettings() { Enabled = isLocal }
+        };
+
+        msBuildSettings = msBuildSettings
+            .SetMaxCpuCount(2)
+            .WithProperty("DebugType", "none")
+            .WithProperty("DebugSymbols", "false")
+            .WithProperty("GenerateDocumentationFile", "false")
+            .WithProperty("Description", description)
+            .WithProperty("Version", gitVersion.MajorMinorPatch)
+            .WithProperty("AssemblyVersion", gitVersion.AssemblySemVer)
+            .WithProperty("FileVersion", gitVersion.AssemblySemFileVer)
+            .WithProperty("InformationalVersion", publishVersion)
+            .WithProperty("NativeBuild", "false")
+            .WithProperty("TieredPGO", "true");
+
+        foreach (var r in new string[]{"linux-x64", "linux-arm64"})
+        {
+            var setting = new DotNetPublishSettings
+            {
+                MSBuildSettings = msBuildSettings,
+                Configuration = buildConfiguration,
+                Runtime = r,
+                OutputDirectory = $@"Publish/{r}/{buildConfiguration}/",
+                PublishSingleFile = true,
+                SelfContained = true,
+                PublishReadyToRun = true,
+                IncludeNativeLibrariesForSelfExtract = true,
+                EnableCompressionInSingleFile = false,
+                PublishTrimmed = true,
+                Verbosity = verbosity,
+            };
+            DotNetPublish(solution, setting);
+
+            // clean obj for cross-compile
+            DeleteDirectories(GetDirectories("./src/obj"), new DeleteDirectorySettings { Recursive = true, Force = true });
+
+            // archive
+            var archivePath = $"Publish/SerialportCli-v{publishVersion}-{r}.tar.gz";
+            try { DeleteFile(archivePath); } catch { }
+            using var fs = System.IO.File.OpenWrite(archivePath);
+            using var gzips = new System.IO.Compression.GZipStream(fs, System.IO.Compression.CompressionLevel.SmallestSize, true);
+            System.Formats.Tar.TarFile.CreateFromDirectory($"Publish/{r}/{buildConfiguration}", gzips, false);
+
+            // github action output
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_REF")))
+            {
+                FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"ASSET_{r}={archivePath}\n");
+            }
+        }
+
+        // github action output
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_REF")))
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(Environment.GetEnvironmentVariable("GITHUB_REF"), @"(?<=(/tags/))([\s\S]+)");
+            var tag = m.Value;
+            FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"TAG={tag}\n");
+        }
+    });
+
+Task("PublishLinuxAot")
+    .Description($"publish aot release configuration. [{solution}] .")
+    .Does(() =>
+    {
+        var buildConfiguration = Argument("configuration", "Release");
+        var msBuildSettings = new DotNetMSBuildSettings
+        {
+            ArgumentCustomization = args => args
+                .Append("-nodeReuse:false")
+            ,
+            BinaryLogger = new MSBuildBinaryLoggerSettings() { Enabled = isLocal }
+        };
+
+        msBuildSettings = msBuildSettings
+            .SetMaxCpuCount(2)
+            .WithProperty("DebugType", "none")
+            .WithProperty("DebugSymbols", "false")
+            .WithProperty("GenerateDocumentationFile", "false")
+            .WithProperty("Description", description)
+            .WithProperty("Version", gitVersion.MajorMinorPatch)
+            .WithProperty("AssemblyVersion", gitVersion.AssemblySemVer)
+            .WithProperty("FileVersion", gitVersion.AssemblySemFileVer)
+            .WithProperty("InformationalVersion", publishVersion)
+            .WithProperty("NativeBuild", "true");
+
+        foreach (var r in new string[] { "linux-x64" })
+        {
+            var setting = new DotNetPublishSettings
+            {
+                MSBuildSettings = msBuildSettings,
+                Configuration = buildConfiguration,
+                Runtime = r,
+                PublishTrimmed = true,
+                SelfContained = true,
+                PublishReadyToRun = true,
+                OutputDirectory = $@"Publish/{r}-aot/{buildConfiguration}/",
+                Verbosity = verbosity,
+            };
+            DotNetPublish(solution, setting);
+
+            // clean obj for cross-compile
+            DeleteDirectories(GetDirectories("./src/obj"), new DeleteDirectorySettings { Recursive = true, Force = true });
+
+            // archive
+            var archivePath = $"Publish/SerialportCli-v{publishVersion}-{r}-aot.tar.gz";
+            try { DeleteFile(archivePath); } catch { }
+            using var fs = System.IO.File.OpenWrite(archivePath);
+            using var gzips = new System.IO.Compression.GZipStream(fs, System.IO.Compression.CompressionLevel.SmallestSize, true);
+            System.Formats.Tar.TarFile.CreateFromDirectory($"Publish/{r}-aot/{buildConfiguration}", gzips, false);
+
+            // github action output
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_REF")))
+            {
+                FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"ASSET_{r}_aot={archivePath}\n");
+            }
+        }
+
+        // github action output
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_REF")))
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(Environment.GetEnvironmentVariable("GITHUB_REF"), @"(?<=(/tags/))([\s\S]+)");
+            var tag = m.Value;
+            FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"TAG={tag}\n");
         }
     });
 
@@ -356,7 +513,6 @@ Task("Push")
                     .AppendQuoted("https://api.nuget.org/v3/index.json")
             );
         }
-
     });
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -364,12 +520,6 @@ Task("Push")
 ///////////////////////////////////////////////////////////////////////////////
 
 Task("Default")
-    .IsDependentOn("Publish");
-
-Task("Publish")
-    .IsDependentOn("Clean")
-    .IsDependentOn("PublishWindows")
-    .IsDependentOn("Publish_win_x64_Aot")
     .IsDependentOn("Pack");
 
 ///////////////////////////////////////////////////////////////////////////////
