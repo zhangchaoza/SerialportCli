@@ -1,51 +1,55 @@
 using System.IO.Ports;
 
-namespace SerialportCli
+namespace SerialportCli;
+
+internal enum LogLevel
 {
-    internal enum LogLevel
+    Quiet,
+
+    Minimal,
+
+    Normal,
+
+    Detailed,
+
+    Diagnostic
+}
+
+internal class GlobalParams
+{
+    public LogLevel Verbose { get; set; }
+
+    public bool NoAnsi { get; set; }
+}
+
+internal class SerialParams
+{
+    public const int DEFAULT_BAUDRATE = 9600;
+    public const Parity DEFAULT_PARITY = Parity.None;
+    public const int DEFAULT_DATABITS = 8;
+    public const StopBits DEFAULT_STOPBITS = StopBits.One;
+
+    public SerialParams(
+        string port,
+        int baudRate = DEFAULT_BAUDRATE,
+        Parity parity = DEFAULT_PARITY,
+        int dataBits = DEFAULT_DATABITS,
+        StopBits stopBits = DEFAULT_STOPBITS)
     {
-        Quiet,
-
-        Minimal,
-
-        Normal,
-
-        Detailed,
-
-        Diagnostic
+        Port = port;
+        BaudRate = baudRate;
+        Parity = parity;
+        DataBits = dataBits;
+        StopBits = stopBits;
     }
 
-    internal class GlobalParams
-    {
-        public LogLevel Verbose { get; set; }
+    public string Port { get; }
 
-        public bool NoAnsi { get; set; }
-    }
+    public int BaudRate { get; }
 
-    internal class SerialParams
-    {
-        public const int DEFAULT_BAUDRATE = 9600;
-        public const Parity DEFAULT_PARITY = Parity.None;
-        public const int DEFAULT_DATABITS = 8;
-        public const StopBits DEFAULT_STOPBITS = StopBits.One;
+    public Parity Parity { get; }
 
-        public SerialParams(string port, int baudRate, Parity parity, int dataBits, StopBits stopBits)
-        {
-            Port = port;
-            BaudRate = baudRate;
-            Parity = parity;
-            DataBits = dataBits;
-            StopBits = stopBits;
-        }
+    public int DataBits { get; }
 
-        public string Port { get; }
-
-        public int BaudRate { get; } = DEFAULT_BAUDRATE;
-
-        public Parity Parity { get; } = DEFAULT_PARITY;
-
-        public int DataBits { get; } = DEFAULT_DATABITS;
-
-        public StopBits StopBits { get; } = DEFAULT_STOPBITS;
-    }
+    public StopBits StopBits { get; }
 }

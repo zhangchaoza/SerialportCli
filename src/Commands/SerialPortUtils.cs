@@ -1,10 +1,10 @@
-namespace SerialportCli;
-
+using System.Drawing;
+using System.IO.Ports;
 using CoreLib.IO.Ports;
 using CoreLib.Logging;
 using Pastel;
-using System.Drawing;
-using System.IO.Ports;
+
+namespace SerialportCli.Commands;
 
 internal static class SerialPortUtils
 {

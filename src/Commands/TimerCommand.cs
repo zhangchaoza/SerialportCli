@@ -1,15 +1,15 @@
-namespace SerialportCli;
-
-using CoreLib.IO.Buffers;
-using CoreLib.IO.Ports;
-using Pastel;
-using SerialportCli.Report;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.CommandLine.NamingConventionBinder;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO.Ports;
+using CoreLib.IO.Buffers;
+using CoreLib.IO.Ports;
+using Pastel;
+using SerialportCli.Report;
+
+namespace SerialportCli.Commands;
 
 public class TimerCommand
 {
@@ -23,29 +23,27 @@ public class TimerCommand
     {
         var command = new Command("timer", "connect to a serial port and timer receive.");
         command.AddArgument(new Argument<string>("port", description: "port name of serial port"));
-        command.AddOption(new Option<int>(new string[] { "--baudrate", "-b" }, description: "baudrate of serial port", getDefaultValue: () => SerialParams.DEFAULT_BAUDRATE));
+        command.AddOption(new Option<int>(["--baudrate", "-b"], description: "baudrate of serial port", getDefaultValue: () => SerialParams.DEFAULT_BAUDRATE));
         command.AddOption(new Option<Parity>(
-            new string[] { "--parity", "-p" },
+            ["--parity", "-p"],
             description: "Parity of serial port.",
             parseArgument: r =>
             {
                 if (r.Tokens.Any())
                 {
-                    return Enum.GetValues<Parity>().First(i => Enum.GetName<Parity>(i)!.StartsWith(r.Tokens[0].Value, StringComparison.OrdinalIgnoreCase));
+                    return Enum.GetValues<Parity>().First(i => Enum.GetName(i)!.StartsWith(r.Tokens[0].Value, StringComparison.OrdinalIgnoreCase));
                 }
-                else
-                {
-                    return SerialParams.DEFAULT_PARITY;
-                }
+
+                return SerialParams.DEFAULT_PARITY;
             },
             isDefault: true));
-        command.AddOption(new Option<int>(new string[] { "--databits", "-d" }, description: "databits of serial port", getDefaultValue: () => SerialParams.DEFAULT_DATABITS));
-        command.AddOption(new Option<StopBits>(new string[] { "--stopbits", "-s" }, description: "stopBits of serial port", getDefaultValue: () => SerialParams.DEFAULT_STOPBITS));
-        command.AddOption(new Option<int?>(new string[] { "--fake-length" }, description: "length of faked bytes.", getDefaultValue: () => FakeParams.DEFAULT_FAKE_LENGTH));
-        command.AddOption(new Option<uint>(new string[] { "--interval" }, description: "write data interval.", getDefaultValue: () => FakeParams.DEFAULT_INTERVAL));
-        command.AddOption(new Option<long>(new string[] { "--timeout" }, description: "data fake timeout (ms).-1 means infinite.", getDefaultValue: () => FakeParams.DEFAULT_TIMEOUT));
-        command.AddOption(new Option<long>(new string[] { "--output-timeout" }, description: "output timeout (ms) after send task has stopped.-1 means infinite.", getDefaultValue: () => FakeParams.DEFAULT_OUTPUT_TIMEOUT));
-        command.AddOption(new Option<string>(new string[] { "--report-path" }, description: "path of report.(like file://sp_report.csv or file:///C:/sp_report.csv)", getDefaultValue: () => FakeParams.DEFAULT_REPORT_PATH));
+        command.AddOption(new Option<int>(["--databits", "-d"], description: "databits of serial port", getDefaultValue: () => SerialParams.DEFAULT_DATABITS));
+        command.AddOption(new Option<StopBits>(["--stopbits", "-s"], description: "stopBits of serial port", getDefaultValue: () => SerialParams.DEFAULT_STOPBITS));
+        command.AddOption(new Option<int?>(["--fake-length"], description: "length of faked bytes.", getDefaultValue: () => FakeParams.DEFAULT_FAKE_LENGTH));
+        command.AddOption(new Option<uint>(["--interval"], description: "write data interval.", getDefaultValue: () => FakeParams.DEFAULT_INTERVAL));
+        command.AddOption(new Option<long>(["--timeout"], description: "data fake timeout (ms).-1 means infinite.", getDefaultValue: () => FakeParams.DEFAULT_TIMEOUT));
+        command.AddOption(new Option<long>(["--output-timeout"], description: "output timeout (ms) after send task has stopped.-1 means infinite.", getDefaultValue: () => FakeParams.DEFAULT_OUTPUT_TIMEOUT));
+        command.AddOption(new Option<string>(["--report-path"], description: "path of report.(like file://sp_report.csv or file:///C:/sp_report.csv)", getDefaultValue: () => FakeParams.DEFAULT_REPORT_PATH));
         command.Handler = CommandHandler.Create<InvocationContext, GlobalParams, SerialParams, TimerCommand, FakeParams>(Run);
         return command;
     }
@@ -55,33 +53,33 @@ public class TimerCommand
         TimerCommand.globalParams = globalParams;
         TimerCommand.serialParams = serialParams;
         TimerCommand.fakeParams = fakeParams;
-        Console.WriteLine(SerialPortUtils.GetPortInfo(serialParams));
-        var port = SerialPortUtils.CreatePort(serialParams);
+        Console.WriteLine(SerialPortUtils.GetPortInfo(TimerCommand.serialParams));
+        var port = SerialPortUtils.CreatePort(TimerCommand.serialParams);
         var sp = new Stopwatch();
         sp.Start();
         port.Open();
         port.DataReceived += ProcessData;
 
-        using var ctsTimeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(fakeParams.Timeout));
+        using var ctsTimeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(TimerCommand.fakeParams.Timeout));
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ctsTimeout.Token, context.GetCancellationToken());
         using var ctsOut = new CancellationTokenSource();
 
-        var processSendTask = Task.Run(async () => await ProcessSend(port, cts.Token));
-        var outputTask = Task.Run(() => OutputLoop(ctsOut.Token));
+        var processSendTask = Task.Run(async () => await ProcessSend(port, cts.Token), cts.Token);
+        var outputTask = Task.Run(() => OutputLoop(ctsOut.Token), ctsOut.Token);
 
         {
             var waiter = new TaskCompletionSource<int>();
-            using var reg = cts.Token.Register(() => waiter.TrySetResult(0));
+            await using var reg = cts.Token.Register(() => waiter.TrySetResult(0));
             await Task.WhenAll(waiter.Task, processSendTask);
         }
 
         Console.WriteLine();
-        if (fakeParams.OutputTimeout >= 0)
+        if (TimerCommand.fakeParams.OutputTimeout >= 0)
         {
             Console.WriteLine("Send task had stopped, wait Output task finished.");
             var waiter = new TaskCompletionSource();
-            using var reg = ctsOut.Token.Register(() => waiter.TrySetResult());
-            ctsOut.CancelAfter(TimeSpan.FromMilliseconds(fakeParams.OutputTimeout));
+            await using var reg = ctsOut.Token.Register(() => waiter.TrySetResult());
+            ctsOut.CancelAfter(TimeSpan.FromMilliseconds(TimerCommand.fakeParams.OutputTimeout));
             await waiter.Task;
         }
         else
@@ -90,7 +88,7 @@ public class TimerCommand
             Console.ReadLine();
         }
         port.Close();
-        ctsOut.Cancel();
+        await ctsOut.CancelAsync();
         await outputTask;
 
         OutPut();
@@ -98,7 +96,7 @@ public class TimerCommand
         sp.Stop();
 
         // save report
-        ReportUtils.SaveReport(fakeParams.ReportPath, serialParams.Port, totalRecv, totalSend, sp.ElapsedMilliseconds);
+        ReportUtils.SaveReport(TimerCommand.fakeParams.ReportPath, TimerCommand.serialParams.Port, totalRecv, totalSend, sp.ElapsedMilliseconds);
 
         return 0;
     }
@@ -118,12 +116,12 @@ public class TimerCommand
             {
                 using IMemoryBuffer buffer = MemoryBuffer.Create(fakeParams.FakeLength);
                 Random.Shared.NextBytes(buffer.Span);
-                await port.WriteAsync(buffer.Memory);
+                await port.WriteAsync(buffer.Memory, token);
                 Interlocked.Add(ref totalSend, buffer.Length);
                 await Task.Delay(_interval, token);
             }
         }
-        catch (System.OperationCanceledException) { }
+        catch (OperationCanceledException) { }
     }
 
     private static async void OutputLoop(CancellationToken token)
@@ -134,7 +132,7 @@ public class TimerCommand
             while (!token.IsCancellationRequested)
             {
                 OutPut();
-                await Task.Delay(100);
+                await Task.Delay(100, token);
             }
         }
         finally
@@ -146,7 +144,7 @@ public class TimerCommand
     private static void OutPut()
     {
         var output = $"{"Total:".Pastel(Color.Gray)}RX: {totalRecv.ToString().Pastel(Color.DarkRed)} ,TX: {totalSend.ToString().Pastel(Color.DarkRed)}";
-        if (TimerCommand.globalParams!.NoAnsi)
+        if (globalParams!.NoAnsi)
         {
             Console.SetCursorPosition(0, Console.CursorTop);
             Console.Write(output);

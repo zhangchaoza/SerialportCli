@@ -1,0 +1,13 @@
+{
+    "configurations": [
+        {
+            "type": "command",
+            "name": "build",
+            "program": "dotnet",
+            "workingDir": "src/",
+            "args": [
+                "build"
+            ],
+        },
+    ]
+}
