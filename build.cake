@@ -33,9 +33,6 @@ var branchName = gitVersion.BranchName;
 var isDevelopBranch = StringComparer.OrdinalIgnoreCase.Equals("develop", branchName);
 var isReleaseBranch = StringComparer.OrdinalIgnoreCase.Equals("main", branchName);
 var isGitHubActionsBuild = GitHubActions.IsRunningOnGitHubActions;
-var shortSha = gitVersion.Sha.Substring(0, 7);
-var publishVersion = $"{gitVersion.FullSemVer}.{shortSha}";
-var nugetVersion = $"{gitVersion.NuGetVersionV2}";
 
 // Directories and Paths
 var solution = "./src/SerialportCli.csproj";
@@ -53,11 +50,8 @@ Setup(ctx =>
     Information("Informational   Version: {0}", gitVersion.InformationalVersion);
     Information("SemVer          Version: {0}", gitVersion.SemVer);
     Information("FullSemVer      Version: {0}", gitVersion.FullSemVer);
-    Information("ShortSha        Version: {0}", shortSha);
     Information("AssemblySemVer  Version: {0}", gitVersion.AssemblySemVer);
     Information("MajorMinorPatch Version: {0}", gitVersion.MajorMinorPatch);
-    Information("Debug           Version: {0}", $"{gitVersion.FullSemVer}.{shortSha}");
-    Information("Publish         Version: {0}", publishVersion);
     Information("IsLocalBuild           : {0}", isLocal);
     Information("Targets                : {0}", string.Join(",", targets));
     Information("Branch                 : {0}", branchName);
@@ -147,7 +141,7 @@ Task("Debug")
                 .WithProperty("Version", gitVersion.MajorMinorPatch)
                 .WithProperty("AssemblyVersion", gitVersion.AssemblySemVer)
                 .WithProperty("FileVersion", gitVersion.AssemblySemFileVer)
-                .WithProperty("InformationalVersion", publishVersion);
+                .WithProperty("InformationalVersion", gitVersion.InformationalVersion);
 
             var buildSetting = new DotNetBuildSettings
             {
@@ -182,7 +176,7 @@ Task("PublishWindows")
             .WithProperty("Version", gitVersion.MajorMinorPatch)
             .WithProperty("AssemblyVersion", gitVersion.AssemblySemVer)
             .WithProperty("FileVersion", gitVersion.AssemblySemFileVer)
-            .WithProperty("InformationalVersion", publishVersion)
+            .WithProperty("InformationalVersion", gitVersion.InformationalVersion)
             .WithProperty("NativeBuild", "false")
             .WithProperty("TieredPGO", "true");
 
@@ -208,7 +202,7 @@ Task("PublishWindows")
             DeleteDirectories(GetDirectories("./src/obj"), new DeleteDirectorySettings { Recursive = true, Force = true });
 
             // archive
-            var archivePath = $"Publish/SerialportCli-v{publishVersion}-{r}.tar.gz";
+            var archivePath = $"Publish/SerialportCli-v{gitVersion.FullSemVer}-{r}.tar.gz";
             try { DeleteFile(archivePath); } catch { }
             using var fs = System.IO.File.OpenWrite(archivePath);
             using var gzips = new System.IO.Compression.GZipStream(fs, System.IO.Compression.CompressionLevel.SmallestSize, true);
@@ -252,7 +246,7 @@ Task("PublishWindowsAot")
             .WithProperty("Version", gitVersion.MajorMinorPatch)
             .WithProperty("AssemblyVersion", gitVersion.AssemblySemVer)
             .WithProperty("FileVersion", gitVersion.AssemblySemFileVer)
-            .WithProperty("InformationalVersion", publishVersion)
+            .WithProperty("InformationalVersion", gitVersion.InformationalVersion)
             .WithProperty("NativeBuild", "true");
 
         foreach (var r in new string[] { "win-x64" })
@@ -274,7 +268,7 @@ Task("PublishWindowsAot")
             DeleteDirectories(GetDirectories("./src/obj"), new DeleteDirectorySettings { Recursive = true, Force = true });
 
             // archive
-            var archivePath = $"Publish/SerialportCli-v{publishVersion}-{r}-aot.tar.gz";
+            var archivePath = $"Publish/SerialportCli-v{gitVersion.FullSemVer}-{r}-aot.tar.gz";
             try { DeleteFile(archivePath); } catch { }
             using var fs = System.IO.File.OpenWrite(archivePath);
             using var gzips = new System.IO.Compression.GZipStream(fs, System.IO.Compression.CompressionLevel.SmallestSize, true);
@@ -318,7 +312,7 @@ Task("PublishLinux")
             .WithProperty("Version", gitVersion.MajorMinorPatch)
             .WithProperty("AssemblyVersion", gitVersion.AssemblySemVer)
             .WithProperty("FileVersion", gitVersion.AssemblySemFileVer)
-            .WithProperty("InformationalVersion", publishVersion)
+            .WithProperty("InformationalVersion", gitVersion.InformationalVersion)
             .WithProperty("NativeBuild", "false")
             .WithProperty("TieredPGO", "true");
 
@@ -344,7 +338,7 @@ Task("PublishLinux")
             DeleteDirectories(GetDirectories("./src/obj"), new DeleteDirectorySettings { Recursive = true, Force = true });
 
             // archive
-            var archivePath = $"Publish/SerialportCli-v{publishVersion}-{r}.tar.gz";
+            var archivePath = $"Publish/SerialportCli-v{gitVersion.FullSemVer}-{r}.tar.gz";
             try { DeleteFile(archivePath); } catch { }
             using var fs = System.IO.File.OpenWrite(archivePath);
             using var gzips = new System.IO.Compression.GZipStream(fs, System.IO.Compression.CompressionLevel.SmallestSize, true);
@@ -388,7 +382,7 @@ Task("PublishLinuxAot")
             .WithProperty("Version", gitVersion.MajorMinorPatch)
             .WithProperty("AssemblyVersion", gitVersion.AssemblySemVer)
             .WithProperty("FileVersion", gitVersion.AssemblySemFileVer)
-            .WithProperty("InformationalVersion", publishVersion)
+            .WithProperty("InformationalVersion", gitVersion.InformationalVersion)
             .WithProperty("NativeBuild", "true");
 
         foreach (var r in new string[] { "linux-x64" })
@@ -410,7 +404,7 @@ Task("PublishLinuxAot")
             DeleteDirectories(GetDirectories("./src/obj"), new DeleteDirectorySettings { Recursive = true, Force = true });
 
             // archive
-            var archivePath = $"Publish/SerialportCli-v{publishVersion}-{r}-aot.tar.gz";
+            var archivePath = $"Publish/SerialportCli-v{gitVersion.FullSemVer}-{r}-aot.tar.gz";
             try { DeleteFile(archivePath); } catch { }
             using var fs = System.IO.File.OpenWrite(archivePath);
             using var gzips = new System.IO.Compression.GZipStream(fs, System.IO.Compression.CompressionLevel.SmallestSize, true);
@@ -454,7 +448,7 @@ Task("Pack")
             .WithProperty("VersionPrefix", gitVersion.MajorMinorPatch)
             .WithProperty("AssemblyVersion", gitVersion.AssemblySemVer)
             .WithProperty("FileVersion", gitVersion.AssemblySemFileVer)
-            .WithProperty("InformationalVersion", publishVersion)
+            .WithProperty("InformationalVersion", gitVersion.InformationalVersion)
             .WithProperty("NativeBuild", "false")
             .WithProperty("TieredPGO", "true")
             .WithProperty("PackAsTool", "true")
