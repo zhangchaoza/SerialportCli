@@ -217,7 +217,7 @@ Task("PublishWindows")
             // github action output
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_REF")))
             {
-                FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"ASSET_{r}={archivePath}\n");
+                FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"ASSET_{r.Replace('-','_')}={archivePath}\n");
             }
         }
 
@@ -283,7 +283,7 @@ Task("PublishWindowsAot")
             // github action output
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_REF")))
             {
-                FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"ASSET_{r}_aot={archivePath}\n");
+                FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"ASSET_{r.Replace('-','_')}_aot={archivePath}\n");
             }
         }
 
@@ -353,7 +353,7 @@ Task("PublishLinux")
             // github action output
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_REF")))
             {
-                FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"ASSET_{r}={archivePath}\n");
+                FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"ASSET_{r.Replace('-','_')}={archivePath}\n");
             }
         }
 
@@ -419,7 +419,7 @@ Task("PublishLinuxAot")
             // github action output
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_REF")))
             {
-                FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"ASSET_{r}_aot={archivePath}\n");
+                FileAppendText(Environment.GetEnvironmentVariable("GITHUB_ENV"), System.Text.Encoding.UTF8, $"ASSET_{r.Replace('-','_')}_aot={archivePath}\n");
             }
         }
 
