@@ -35,8 +35,8 @@ internal static class SerialPortUtils
     {
         return new SerialPortWrapper(
             new SerialConnectInfo(@params.Port, @params.BaudRate, @params.Parity, @params.DataBits, @params.StopBits),
-            readTimeout: 1000,
-            writeTimeout: 1000,
+            readTimeout: 6000,
+            writeTimeout: 6000,
             new EmptyLogger()
         );
     }

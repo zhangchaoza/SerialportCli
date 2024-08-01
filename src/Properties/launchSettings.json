@@ -5,7 +5,7 @@
     },
     "timer": {
       "commandName": "Project",
-      "commandLineArgs": "timer --fake-length 128 --timeout -1 --interval 1 --report-path file://com101.csv com101"
+      "commandLineArgs": "timer --fake-length 512 --timeout -1 --output-timeout -1 --interval 100 --report-path file://com101.csv COM1"
     },
     "echo": {
       "commandName": "Project",

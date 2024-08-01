@@ -2,7 +2,7 @@ namespace SerialportCli.Report;
 
 public class FileAdapter(Uri url) : IReportAdapter
 {
-    public void Append(string name, long totalRecv, long totalSend, long elapsed)
+    public void Append(string name, long totalRecv, long totalSend, long totalRecvError, long totalSendError, long elapsed)
     {
         string path = url.LocalPath.StartsWith(@"\\") switch
         {
@@ -14,7 +14,7 @@ public class FileAdapter(Uri url) : IReportAdapter
         {
             File.WriteAllLines(path, [
                 """
-                "Name","RX(byte)","TX(byte)","Elapsed(ms)"
+                "Name","RX(byte)","TX(byte)","RXError","TXError","Elapsed(ms)"
                 """
             ]);
         }
@@ -25,7 +25,7 @@ public class FileAdapter(Uri url) : IReportAdapter
             {
                 using var fs = File.Open(path, FileMode.Append);
                 using var sw = new StreamWriter(fs);
-                sw.WriteLine($"\"{name}\",\"{totalRecv}\",\"{totalSend}\",\"{elapsed}\"");
+                sw.WriteLine($"\"{name}\",\"{totalRecv}\",\"{totalSend}\",\"{totalRecvError}\",\"{totalSendError}\",\"{elapsed}\"");
                 break;
             }
             catch (IOException)
