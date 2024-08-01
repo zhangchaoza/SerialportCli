@@ -2,7 +2,7 @@
 // TOOLS / ADDINS
 ///////////////////////////////////////////////////////////////////////////////
 
-#tool dotnet:?package=GitVersion.Tool&version=5.12.0
+#tool dotnet:?package=GitVersion.Tool&version=6.0.0
 #addin nuget:?package=Cake.FileHelpers&version=7.0.0
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -32,7 +32,7 @@ GitVersion gitVersion = GitVersion(new GitVersionSettings { OutputType = GitVers
 var branchName = gitVersion.BranchName;
 var isDevelopBranch = StringComparer.OrdinalIgnoreCase.Equals("develop", branchName);
 var isReleaseBranch = StringComparer.OrdinalIgnoreCase.Equals("main", branchName);
-var isTagged = AppVeyor.Environment.Repository.Tag.IsTag;
+var isGitHubActionsBuild = GitHubActions.IsRunningOnGitHubActions;
 var shortSha = gitVersion.Sha.Substring(0, 7);
 var publishVersion = $"{gitVersion.FullSemVer}.{shortSha}";
 var nugetVersion = $"{gitVersion.NuGetVersionV2}";
@@ -59,11 +59,11 @@ Setup(ctx =>
     Information("Debug           Version: {0}", $"{gitVersion.FullSemVer}.{shortSha}");
     Information("Publish         Version: {0}", publishVersion);
     Information("IsLocalBuild           : {0}", isLocal);
-    Information("Target                 : {0}", string.Join(",", targets));
+    Information("Targets                : {0}", string.Join(",", targets));
     Information("Branch                 : {0}", branchName);
     Information("IsDevelopBranch        : {0}", isDevelopBranch);
     Information("OsReleaseBranch        : {0}", isReleaseBranch);
-    Information("IsTagged               : {0}", isTagged);
+    Information("IsGitHubActionsBuild   : {0}", isGitHubActionsBuild);
 });
 
 Teardown(ctx =>
