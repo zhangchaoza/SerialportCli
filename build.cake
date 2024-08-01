@@ -463,7 +463,7 @@ Task("Pack")
         if (!isReleaseBranch)
         {
             msBuildSettings = msBuildSettings
-                .WithProperty("VersionSuffix", gitVersion.NuGetPreReleaseTagV2);
+                .WithProperty("VersionSuffix", gitVersion.FullSemVer);
         }
 
         var setting = new DotNetPackSettings
