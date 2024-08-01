@@ -21,8 +21,24 @@ jobs:
       - name: Get tag
         id: tag
         run: echo "TAG=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
-      - name: Create release
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v3.0.0
+        with:
+          versionSpec: '6.x'
+      - name: Determine Version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v3.0.0
+        with:
+          useConfigFile: true
+      - name: Create release for prerelease
+        if: ${{ steps.gitversion.outputs.preReleaseLabel != '' }}
         env:
           TAG_NAME: ${{ steps.tag.outputs.TAG }}
           GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
-        run: gh release create $TAG_NAME --generate-notes
+        run: gh release create $TAG_NAME --generate-notes --prerelease
+      - name: Create release
+        if: ${{ steps.gitversion.outputs.preReleaseLabel == '' }}
+        env:
+          TAG_NAME: ${{ steps.tag.outputs.TAG }}
+          GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
+        run: gh release create $TAG_NAME --generate-notes --latest
