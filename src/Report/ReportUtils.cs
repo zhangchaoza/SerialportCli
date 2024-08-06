@@ -2,7 +2,7 @@ namespace SerialportCli.Report;
 
 public static class ReportUtils
 {
-    public static void SaveReport(string reportPath, string name, long totalRecv, long totalSend, long elapsed)
+    public static void SaveReport(string reportPath, string name, long totalRecv, long totalSend, long totalRecvError, long totalSendError, long elapsed)
     {
         var url = new Uri(reportPath);
         IReportAdapter adapter = url.Scheme switch
@@ -12,13 +12,13 @@ public static class ReportUtils
             "stderr" => new ConsoleAdapter(false),
             _ => new ConsoleAdapter()
         };
-        adapter.Append(name, totalRecv, totalSend, elapsed);
+        adapter.Append(name, totalRecv, totalSend, totalRecvError, totalSendError, elapsed);
     }
 }
 
 public interface IReportAdapter
 {
-    void Append(string name, long totalRecv, long totalSend, long elapsed);
+    void Append(string name, long totalRecv, long totalSend, long totalRecvError, long totalSendError, long elapsed);
 }
 
 internal class ConsoleAdapter : IReportAdapter
@@ -30,15 +30,9 @@ internal class ConsoleAdapter : IReportAdapter
         this.useStdio = useStdio;
     }
 
-    public void Append(string name, long totalRecv, long totalSend, long elapsed)
+    public void Append(string name, long totalRecv, long totalSend, long totalRecvError, long totalSendError, long elapsed)
     {
-        if (useStdio)
-        {
-            Console.WriteLine($"{name},RX:{totalRecv},TX:{totalSend},{elapsed}");
-        }
-        else
-        {
-            Console.Error.WriteLine($"{name},RX:{totalRecv},TX:{totalSend},{elapsed}");
-        }
+        var content = $"{name},RX:{totalRecv},TX:{totalSend},RXError:{totalRecvError},TXError:{totalSendError},{elapsed}";
+        (useStdio ? Console.Out : Console.Error).WriteLine(content);
     }
 }

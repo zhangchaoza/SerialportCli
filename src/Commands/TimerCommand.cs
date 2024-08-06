@@ -1,13 +1,13 @@
+using CoreLib.IO.Buffers;
+using CoreLib.IO.Ports;
+using Pastel;
+using SerialportCli.Report;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.CommandLine.NamingConventionBinder;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO.Ports;
-using CoreLib.IO.Buffers;
-using CoreLib.IO.Ports;
-using Pastel;
-using SerialportCli.Report;
 
 namespace SerialportCli.Commands;
 
@@ -18,6 +18,8 @@ public class TimerCommand
     private static FakeParams? fakeParams;
     private static long totalRecv;
     private static long totalSend;
+    private static long totalRecvError;
+    private static long totalSendError;
 
     public static Command Build()
     {
@@ -59,6 +61,14 @@ public class TimerCommand
         sp.Start();
         port.Open();
         port.DataReceived += ProcessData;
+        port.OnReceivedFailed += (e, t) =>
+        {
+            if (e is not OperationCanceledException)
+            {
+                Interlocked.Increment(ref totalRecvError);
+            }
+            return Task.CompletedTask;
+        };
 
         using var ctsTimeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(TimerCommand.fakeParams.Timeout));
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ctsTimeout.Token, context.GetCancellationToken());
@@ -70,7 +80,8 @@ public class TimerCommand
         {
             var waiter = new TaskCompletionSource<int>();
             await using var reg = cts.Token.Register(() => waiter.TrySetResult(0));
-            await Task.WhenAll(waiter.Task, processSendTask);
+            var processSendTaskOnError = processSendTask.ContinueWith(_ => cts.Cancel(), TaskContinuationOptions.NotOnRanToCompletion).ContinueWith(t => { });
+            await Task.WhenAll(waiter.Task, processSendTask, processSendTaskOnError);
         }
 
         Console.WriteLine();
@@ -96,7 +107,14 @@ public class TimerCommand
         sp.Stop();
 
         // save report
-        ReportUtils.SaveReport(TimerCommand.fakeParams.ReportPath, TimerCommand.serialParams.Port, totalRecv, totalSend, sp.ElapsedMilliseconds);
+        ReportUtils.SaveReport(
+            TimerCommand.fakeParams.ReportPath,
+            TimerCommand.serialParams.Port,
+            totalRecv,
+            totalSend,
+            totalRecvError,
+            totalSendError,
+            sp.ElapsedMilliseconds);
 
         return 0;
     }
@@ -114,11 +132,29 @@ public class TimerCommand
             var _interval = TimeSpan.FromMilliseconds(fakeParams!.Interval);
             while (!token.IsCancellationRequested)
             {
-                using IMemoryBuffer buffer = MemoryBuffer.Create(fakeParams.FakeLength);
-                Random.Shared.NextBytes(buffer.Span);
-                await port.WriteAsync(buffer.Memory, token);
-                Interlocked.Add(ref totalSend, buffer.Length);
-                await Task.Delay(_interval, token);
+                try
+                {
+                    using IMemoryBuffer buffer = MemoryBuffer.Create(fakeParams.FakeLength);
+                    Random.Shared.NextBytes(buffer.Span);
+                    await port.WriteAsync(buffer.Memory);// With no CancellationToken, cuz must entirely write one memorybuffer.
+                    Interlocked.Add(ref totalSend, buffer.Length);
+                    await Task.Delay(_interval, token);
+                }
+                catch (TimeoutException)
+                {
+                    Interlocked.Increment(ref totalSendError);
+                    // TODO:log error
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    // token is canceled, not Increment totalSendError
+                }
+                catch (Exception)
+                {
+                    Interlocked.Increment(ref totalSendError);
+                    // TODO:log error
+                    throw;
+                }
             }
         }
         catch (OperationCanceledException) { }
@@ -135,6 +171,9 @@ public class TimerCommand
                 await Task.Delay(100, token);
             }
         }
+        catch (TaskCanceledException)
+        {
+        }
         finally
         {
             try { Console.CursorVisible = true; } catch { }
@@ -143,7 +182,7 @@ public class TimerCommand
 
     private static void OutPut()
     {
-        var output = $"{"Total:".Pastel(Color.Gray)}RX: {totalRecv.ToString().Pastel(Color.DarkRed)} ,TX: {totalSend.ToString().Pastel(Color.DarkRed)}";
+        var output = $"{"Total:".Pastel(Color.Gray)}RX: {totalRecv.ToString().Pastel(Color.DarkRed)} ,TX: {totalSend.ToString().Pastel(Color.DarkRed)} ,RXError: {totalRecvError.ToString().Pastel(Color.DarkRed)} ,TXError: {totalSendError.ToString().Pastel(Color.DarkRed)}";
         if (globalParams!.NoAnsi)
         {
             Console.SetCursorPosition(0, Console.CursorTop);

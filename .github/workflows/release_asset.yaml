@@ -15,52 +15,7 @@ env:
   REGISTRY: registry.cn-hangzhou.aliyuncs.com
 
 jobs:
-  windows:
-    runs-on: windows-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
-      - name: Run the Cake script Package
-        uses: cake-build/cake-action@v2
-        env:
-          NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
-        with:
-          cake-version: 4.0.0
-          target: Push
-      - name: Update release with nuget package
-        env:
-          GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
-        run: gh release upload $TAG $ASSET
-      - name: Run the Cake script PublishWindows
-        uses: cake-build/cake-action@v2
-        with:
-          cake-version: 4.0.0
-          target: PublishWindows
-      - name: Update release with Windows package
-        env:
-          GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
-        run: |
-          gh release upload $TAG $ASSET_win-x64
-          gh release upload $TAG $ASSET_win-x86
-          gh release upload $TAG $ASSET_win-arm64
-      - name: Run the Cake script PublishWindowsAot
-        uses: cake-build/cake-action@v2
-        with:
-          cake-version: 4.0.0
-          target: PublishWindowsAot
-      - name: Update release with Windows aot package
-        env:
-          GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
-        run: |
-          gh release upload $TAG $ASSET_win-x64_aot
-  linux:
+  nuget:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -78,29 +33,80 @@ jobs:
           NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
         with:
           cake-version: 4.0.0
+          verbosity: Diagnostic
           target: Push
       - name: Update release with nuget package
         env:
           GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
         run: gh release upload $TAG $ASSET
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Run the Cake script PublishWindows
+        uses: cake-build/cake-action@v2
+        with:
+          cake-version: 4.0.0
+          verbosity: Diagnostic
+          target: PublishWindows
+      - name: Update release with Windows package
+        env:
+          GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
+        run: |
+          gh release upload $TAG $ASSET_win_x64
+          gh release upload $TAG $ASSET_win_x86
+          gh release upload $TAG $ASSET_win_arm64
+      - name: Run the Cake script PublishWindowsAot
+        uses: cake-build/cake-action@v2
+        with:
+          cake-version: 4.0.0
+          verbosity: Diagnostic
+          target: PublishWindowsAot
+      - name: Update release with Windows aot package
+        env:
+          GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
+        run: |
+          gh release upload $TAG $ASSET_win_x64_aot
+  linux:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
       - name: Run the Cake script PublishLinux
         uses: cake-build/cake-action@v2
         with:
           cake-version: 4.0.0
+          verbosity: Diagnostic
           target: PublishLinux
       - name: Update release with Linux package
         env:
           GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
         run: |
-          gh release upload $TAG $ASSET_linux-x64
-          gh release upload $TAG $ASSET_linux-arm64
+          gh release upload $TAG $ASSET_linux_x64
+          gh release upload $TAG $ASSET_linux_arm64
       - name: Run the Cake script PublishLinuxAot
         uses: cake-build/cake-action@v2
         with:
           cake-version: 4.0.0
+          verbosity: Diagnostic
           target: PublishLinuxAot
       - name: Update release with Linux aot package
         env:
           GITHUB_TOKEN: ${{ secrets.YOUR_GITHUB_TOKEN }}
         run: |
-          gh release upload $TAG $ASSET_linux-x64_aot
+          gh release upload $TAG $ASSET_linux_x64_aot

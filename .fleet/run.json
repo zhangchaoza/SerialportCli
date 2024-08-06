@@ -2,7 +2,20 @@
     "configurations": [
         {
             "type": "command",
+            "name": "format",
+            "program": "dotnet",
+            "args": [
+                "format",
+                "-v=n",
+                "src/Serialportcli.sln"
+            ],
+        },
+        {
+            "type": "command",
             "name": "build",
+            "dependsOn": [
+                "format"
+            ],
             "program": "dotnet",
             "workingDir": "src/",
             "args": [
